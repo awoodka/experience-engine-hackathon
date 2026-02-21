@@ -36,6 +36,10 @@ Search across: activities, workers, tools, materials, spatial context, safety no
 ./ee process [--index <name>] [--force] [--limit <n>]
 ```
 
+## Rules
+
+- **Never assume the schema of manifest or timeline files.** Before constructing commands or scripts that reference fields in `data/.ee/indices/*/manifest.json` or timeline JSON files, always read the file first to inspect the actual field names. Do not guess key names.
+
 ## Workflow
 
 1. Run `./ee list` to see available indices

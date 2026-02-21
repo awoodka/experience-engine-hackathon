@@ -23,6 +23,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Fragment, useRef, useEffect, useState, useCallback } from "react";
+import { useStickToBottom } from "use-stick-to-bottom";
 
 const SUGGESTIONS = [
   {
@@ -192,9 +193,10 @@ export default function Chat() {
   const [input, setInput] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+
+  const { scrollRef, contentRef, isAtBottom, scrollToBottom } =
+    useStickToBottom();
 
   const isStreaming = status === "streaming";
   const isReady = status === "ready";
@@ -204,10 +206,6 @@ export default function Chat() {
     containerRef.current?.classList.replace("opacity-0", "opacity-100");
     textareaRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -275,7 +273,7 @@ export default function Chat() {
       </header>
 
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto">
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center px-4">
             <div
@@ -314,7 +312,7 @@ export default function Chat() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl px-4 pt-2 pb-4">
+          <div ref={contentRef} className="mx-auto max-w-3xl px-4 pt-2 pb-4">
             {messages.map((message, i) => {
               const isUser = message.role === "user";
               const isLastMessage = i === messages.length - 1;
@@ -391,10 +389,21 @@ export default function Chat() {
                   </div>
                 </div>
               )}
-            <div ref={endRef} />
           </div>
         )}
       </div>
+
+      {/* Scroll to bottom button */}
+      {!isEmpty && !isAtBottom && (
+        <div className="flex justify-center pb-2">
+          <button
+            onClick={() => scrollToBottom()}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-ee-surface)] text-[var(--color-ee-text-muted)] shadow-lg transition-all hover:bg-[var(--color-ee-border)] hover:text-[var(--color-ee-text)]"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Input area */}
       <div className={cn("shrink-0 px-4 pb-4", isEmpty && "-mt-16")}>

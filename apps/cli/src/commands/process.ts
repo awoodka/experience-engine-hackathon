@@ -19,9 +19,12 @@ import { z } from "zod";
 import { env } from "../env";
 
 /** Root directory for video files (relative to CLI package). */
-const DATA_DIR = resolve(import.meta.dirname, "../../../../data");
+const DATA_DIR = resolve(import.meta.dirname, "../../../../data/videos");
 /** Directory containing all behavioral indices. */
-const INDICES_DIR = resolve(DATA_DIR, ".ee/indices");
+const INDICES_DIR = resolve(
+  import.meta.dirname,
+  "../../../../data/.ee/indices",
+);
 /** Subdirectory name for timeline JSON files per index. */
 const TIMELINES_DIR_NAME = "timelines";
 /** Default index name when --index is not specified. */

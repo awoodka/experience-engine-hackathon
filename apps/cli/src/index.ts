@@ -9,6 +9,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   score: (await import("./commands/score.js")).default,
   list: (await import("./commands/list.js")).default,
   status: (await import("./commands/status.js")).default,
+  tutorial: (await import("./commands/tutorial.js")).default,
 };
 
 if (!command || command === "--help" || command === "-h") {
@@ -24,6 +25,7 @@ if (!command || command === "--help" || command === "-h") {
                                                     Compute heuristic scores from timelines
     ee list                                         Show all indices
     ee status [--index <name>]                      Show index processing progress
+    ee tutorial render <id> [--model <id>]           Render data/tutorials/scripts/<id>.json → MP4
   `);
   process.exit(0);
 }

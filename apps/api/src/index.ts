@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { consumeStream, convertToModelMessages, streamText } from "ai";
 import { claudeCode } from "ai-sdk-provider-claude-code";
 import { resolve } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
 import {
   CLAUDE_CODE_MODEL,
   CLAUDE_CODE_PERMISSION_MODE,
@@ -31,7 +32,7 @@ app.use(
   cors({
     origin: ["http://localhost:7891"],
     allowHeaders: ["Content-Type"],
-    allowMethods: ["POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
   }),
 );
 
@@ -56,6 +57,32 @@ app.post("/api/chat", async (c) => {
 
 app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+const tutorialsDir = resolve(projectRoot, "data/tutorials/videos");
+
+app.get("/api/tutorials", async (c) => {
+  try {
+    const files = await readdir(tutorialsDir);
+    const metaFiles = files.filter((f) => f.endsWith(".meta.json"));
+    const metas = await Promise.all(
+      metaFiles.map(async (f) => {
+        const raw = await readFile(resolve(tutorialsDir, f), "utf8");
+        return JSON.parse(raw) as {
+          id: string;
+          generatedAt: string;
+          [key: string]: unknown;
+        };
+      }),
+    );
+    metas.sort(
+      (a, b) =>
+        new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime(),
+    );
+    return c.json(metas);
+  } catch {
+    return c.json([]);
+  }
 });
 
 export default {

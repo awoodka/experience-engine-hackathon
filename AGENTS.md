@@ -22,6 +22,7 @@ Run from repo root unless noted.
 - `bun run build`: build all workspaces (`dist/`, `.astro/` outputs).
 - `bun run check`: format + lint fix (`prettier --write` and `eslint --fix`).
 - `bun run ee --help` or `./ee --help`: inspect CLI commands.
+- `./ee tutorial render <id>`: render `data/tutorials/videos/<id>.json` → `data/tutorials/<id>.mp4`. The tutorial JSON is authored by the Claude chatbot using real timestamps from `./ee query`.
 - `bun run sync` / `bun run upload`: pull/push `data/indices` with `gh` CLI.
 
 ## Coding Style & Naming Conventions

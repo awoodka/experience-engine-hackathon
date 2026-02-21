@@ -6,6 +6,7 @@ interface Props {
 }
 
 const { title } = Astro.props;
+const pathname = Astro.url.pathname;
 ---
 
 <!doctype html>
@@ -23,7 +24,85 @@ const { title } = Astro.props;
     />
     <title>{title}</title>
   </head>
-  <body>
-    <slot />
+  <body
+    style="display: flex; flex-direction: column; height: 100dvh; margin: 0; overflow: hidden;"
+  >
+    <!-- Top navigation bar -->
+    <nav
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        min-height: 48px;
+        padding: 0 1.25rem;
+        background: var(--color-ee-surface);
+        border-bottom: 1px solid var(--color-ee-border);
+        z-index: 10;
+      "
+    >
+      <!-- Left: brand -->
+      <a
+        href="/"
+        style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--color-ee-accent); font-weight: 600; font-size: 0.95rem;"
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <!-- HardHat icon -->
+          <path d="M2 20h20"></path>
+          <path d="M12 4C9 4 6 6 5.5 9H18.5C18 6 15 4 12 4z"></path>
+          <path d="M5.5 9v3a6.5 6.5 0 0 0 13 0V9"></path>
+        </svg>
+        Experience Engine
+      </a>
+
+      <!-- Right: nav links -->
+      <div style="display: flex; align-items: center; gap: 0.25rem;">
+        <a
+          href="/"
+          style={`
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.15s;
+            color: ${pathname === "/" ? "var(--color-ee-accent)" : "var(--color-ee-text-secondary)"};
+            background: ${pathname === "/" ? "rgba(245,158,11,0.1)" : "transparent"};
+          `}
+        >
+          Chat
+        </a>
+        <a
+          href="/tutorials"
+          style={`
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.15s;
+            color: ${pathname.startsWith("/tutorials") ? "var(--color-ee-accent)" : "var(--color-ee-text-secondary)"};
+            background: ${pathname.startsWith("/tutorials") ? "rgba(245,158,11,0.1)" : "transparent"};
+          `}
+        >
+          Tutorials
+        </a>
+      </div>
+    </nav>
+
+    <!-- Page content fills remaining height -->
+    <div style="flex: 1; min-height: 0; overflow: hidden;">
+      <slot />
+    </div>
   </body>
 </html>

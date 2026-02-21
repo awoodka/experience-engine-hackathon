@@ -1,7 +1,7 @@
 ---
 name: ee
 description: Query and manage Experience Engine video behavioral indices. Use when the user asks about worker behavior, activities, expertise, inefficiencies, safety, tools, or anything related to construction site video analysis.
-allowed-tools: Bash(./ee *)
+allowed-tools: Bash(./ee *), Read, Write
 ---
 
 # Experience Engine CLI
@@ -10,54 +10,13 @@ Use the `./ee` CLI to search behavioral timelines and compute heuristic expertis
 
 ## Commands
 
-### List indices
+- `./ee list` — show available indices
+- `./ee query "<terms>" [--index <name>] [--limit <n>]` — search segments
+- `./ee status [--index <name>]` — show processing progress
+- `./ee process [--index <name>] [--force] [--limit <n>]` — build index
+- `./ee tutorial render <id>` — render `data/tutorials/scripts/<id>.json` → MP4
 
-```bash
-./ee list
-```
-
-### Query timelines
-
-```bash
-./ee query "<search terms>" [--index <name>] [--limit <n>]
-```
-
-Search across: activities, workers, tools, materials, spatial context, safety notes, risk levels, expertise signals, inefficiency signals, communication events, ergonomic notes.
-
-### Score videos (behavioral heuristics)
-
-```bash
-./ee score [--index <name>] [--output <path>] [--limit <n>]
-```
-
-Computes quantitative expertise scores per video. Use when the user asks about:
-
-- What inexperienced workers should learn
-- Expert vs novice behavior
-- Implicit intent (checking before acting, hesitation, coordination, smoothness)
-- How to improve as a worker
-- Which videos/clips show best practices
-- Quantitative comparison across footage
-
-**Output:** JSON with per-video `scores` (0–100) and `features` (raw metrics). Writes to stdout unless `--output` is given. Stderr shows progress; parse stdout for JSON.
-
-**Example:**
-
-```bash
-./ee score --index construction --limit 5
-```
-
-### Check status
-
-```bash
-./ee status [--index <name>]
-```
-
-### Process videos
-
-```bash
-./ee process [--index <name>] [--force] [--limit <n>]
-```
+**Rule:** Never assume timeline or manifest field names. Read the file first.
 
 ## Score output schema
 
@@ -100,22 +59,63 @@ Each video in the output has:
 3. **Give actionable targets** — e.g. "Aim for check-before-act rate ≥ 0.8; experts in this footage average 0.85."
 4. **Combine with `ee query`** — Use scores to rank/select videos, then `ee query "inspect before"` or `ee query "handoff"` to find timestamped segments that illustrate those behaviors.
 
-## Workflow for "teach me" or "what should I learn" questions
-
-1. Run `./ee list` to see available indices.
-2. Run `./ee score --index <name>` to get scores for all processed videos. Parse the JSON from stdout.
-3. Optionally run `./ee query "<terms>" --index <name>` for qualitative segments (e.g. "expertise signals", "check before", "handoff").
-4. Synthesize: cite high-scoring videos, explain which dimensions matter, give concrete behaviors and targets, and link to example timestamps from query hits.
-
-## Rules
-
-- **Never assume the schema of manifest or timeline files.** Before constructing commands or scripts that reference fields in `data/.ee/indices/*/manifest.json` or timeline JSON files, always read the file first to inspect the actual field names. Do not guess key names.
-
 ## General workflow
 
-1. Run `./ee list` to see available indices.
-2. For qualitative search: run `./ee query "<terms>"` for segments.
-3. For quantitative analysis or teaching: run `./ee score` for heuristic scores and features.
-4. Present findings with video names, timestamps, scores, and actionable guidance.
+1. `./ee list` to see indices
+2. `./ee query "<terms>"` to find relevant segments
+3. `./ee score` for quantitative expertise scores and teaching guidance
+4. Present findings with video names, timestamps, scores, and actionable guidance
 
 If no indices exist, tell the user to add videos to `data/` and run `./ee process`.
+
+---
+
+## Tutorial authoring
+
+When the user asks for a tutorial, the goal is to identify what separates the most experienced workers from the least, then teach those specific behaviors. Never invent timestamps — always source them from query results or timeline files.
+
+**1. Score all videos:** `./ee score` — rank by `overallScore`. Identify the top scorer(s) (most experienced) and bottom scorer(s) (least experienced).
+
+**2. Analyze the gap:** Compare scores and features between top and bottom. Find the dimensions with the largest spread (e.g. expert `attentionScore: 88`, novice `attentionScore: 32`). Those gaps define what the tutorial teaches. Reason explicitly: "The biggest difference is X, driven by feature Y."
+
+**3. Find expert clips:** `./ee query "<behavior from gap>" --limit 15` searching only within the top-scoring video(s). Note video filename, startSec, endSec. Get exact timestamps if needed by reading `data/.ee/indices/default/timelines/<file>.timeline.json`.
+
+**4. Write** `data/tutorials/scripts/<id>.json` — structure the tutorial as: introduce the expert/novice gap → show expert behavior with clips → highlight what to look for with pause steps → close with an actionable takeaway tied to a specific feature target (e.g. "aim for checkBeforeActRate ≥ 0.8"):
+
+```json
+{
+  "title": "Short title",
+  "type": "tutorial",
+  "description": "One sentence describing what this teaches.",
+  "trade": "<inferred from footage: Masonry, Carpentry, Plumbing, Electrical, etc.>",
+  "skill": "<specific skill: Mortar Application, Pipe Threading, etc.>",
+  "generatedAt": "<ISO timestamp>",
+  "steps": [
+    { "type": "narrate", "text": "Intro text." },
+    {
+      "type": "play",
+      "video": "filename.mp4",
+      "startSec": 39,
+      "endSec": 47,
+      "label": "Optional caption"
+    },
+    {
+      "type": "pause",
+      "video": "filename.mp4",
+      "timestampSec": 43,
+      "description": "What to notice.",
+      "region": { "x": 0.36, "y": 0.44, "w": 0.23, "h": 0.15 }
+    },
+    { "type": "takeaway", "text": "Key lesson." }
+  ]
+}
+```
+
+**Step types:**
+
+- `narrate` — white text card, 6s. Required: `text`
+- `play` — footage clip. Required: `video`, `startSec`, `endSec` (endSec > startSec, 5–45s). Optional: `label`
+- `pause` — freeze frame, 5s. Required: `video`, `timestampSec`, `description`. Optional: `region` (amber box, values 0–1)
+- `takeaway` — amber text card, 7s. Required: `text`
+
+**5. Render:** `./ee tutorial render <id>`

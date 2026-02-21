@@ -283,7 +283,7 @@ export default function Chat() {
   return (
     <div
       ref={containerRef}
-      className="flex h-screen flex-col bg-[var(--color-ee-bg)] opacity-0 transition-opacity duration-500"
+      className="flex h-full flex-col bg-[var(--color-ee-bg)] opacity-0 transition-opacity duration-500"
     >
       {/* Messages area */}
       <div ref={scrollRef} className="relative flex-1 overflow-y-auto">

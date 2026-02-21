@@ -1,0 +1,276 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Tutorials — Experience Engine">
+  <div
+    class="h-full overflow-y-auto"
+    style="background: var(--color-ee-bg); color: var(--color-ee-text);"
+  >
+    <div
+      id="tutorials-root"
+      style="padding: 2rem; max-width: 1200px; margin: 0 auto;"
+    >
+      <div
+        id="loading-state"
+        style="display: flex; align-items: center; justify-content: center; height: 200px; color: var(--color-ee-text-muted); font-size: 1rem;"
+      >
+        Loading tutorials…
+      </div>
+    </div>
+  </div>
+
+  <!-- Video modal overlay -->
+  <div
+    id="video-modal"
+    style="display: none; position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.85); align-items: center; justify-content: center;"
+    role="dialog"
+    aria-modal="true"
+  >
+    <button
+      id="modal-close"
+      style="position: absolute; top: 1rem; right: 1.25rem; background: none; border: none; cursor: pointer; color: #ececec; font-size: 1.75rem; line-height: 1;"
+      aria-label="Close">✕</button
+    >
+    <video
+      id="modal-video"
+      controls
+      style="max-width: 90vw; max-height: 85vh; border-radius: 10px; background: #000;"
+    ></video>
+  </div>
+</Layout>
+
+<script>
+  interface TutorialMeta {
+    id: string;
+    title: string;
+    trade: string;
+    skill: string;
+    description: string;
+    generatedAt: string;
+    videoPath: string;
+    thumbnailPath: string;
+  }
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function formatDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return iso;
+    }
+  }
+
+  function renderEmpty(): string {
+    return `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 1rem; text-align: center;">
+        <div style="font-size: 3rem;">🎬</div>
+        <h2 style="font-size: 1.5rem; font-weight: 600; color: var(--color-ee-text); margin: 0;">No tutorials yet</h2>
+        <p style="color: var(--color-ee-text-muted); max-width: 420px; line-height: 1.6; margin: 0;">
+          Generate your first tutorial from the CLI:
+        </p>
+        <code style="background: var(--color-ee-surface); color: var(--color-ee-accent); padding: 0.5rem 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; border: 1px solid var(--color-ee-border);">
+          ./ee tutorial "your training topic"
+        </code>
+        <a
+          href="/"
+          style="margin-top: 0.5rem; color: var(--color-ee-accent); text-decoration: underline; text-underline-offset: 3px; font-size: 0.95rem;"
+        >← Go to Chat</a>
+      </div>
+    `;
+  }
+
+  function renderGrid(tutorials: TutorialMeta[]): string {
+    const cards = tutorials
+      .map((t) => {
+        const thumbUrl = "/" + escapeHtml(t.thumbnailPath);
+        const videoUrl = "/" + escapeHtml(t.videoPath);
+        const date = escapeHtml(formatDate(t.generatedAt));
+        const title = escapeHtml(t.title);
+        const trade = escapeHtml(t.trade);
+        const skill = escapeHtml(t.skill);
+        const desc = escapeHtml(t.description);
+
+        return `
+          <div
+            class="tutorial-card"
+            data-video="${videoUrl}"
+            style="
+              background: var(--color-ee-surface);
+              border: 1px solid var(--color-ee-border);
+              border-radius: 12px;
+              overflow: hidden;
+              cursor: pointer;
+              transition: border-color 0.15s, transform 0.15s;
+            "
+            role="button"
+            tabindex="0"
+            aria-label="Play ${title}"
+          >
+            <div style="position: relative; width: 100%; padding-top: 56.25%; background: #1a1a1a; overflow: hidden;">
+              <img
+                src="${thumbUrl}"
+                alt="${title}"
+                style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;"
+                loading="lazy"
+                onerror="this.style.display='none'"
+              />
+              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+                <div style="
+                  width: 48px; height: 48px; border-radius: 50%;
+                  background: rgba(245,158,11,0.85);
+                  display: flex; align-items: center; justify-content: center;
+                ">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 1rem;">
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                <span style="
+                  background: rgba(245,158,11,0.15);
+                  color: #f59e0b;
+                  border: 1px solid rgba(245,158,11,0.3);
+                  font-size: 0.72rem;
+                  font-weight: 600;
+                  padding: 2px 8px;
+                  border-radius: 999px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.04em;
+                ">${trade}</span>
+                <span style="
+                  background: var(--color-ee-surface-hover);
+                  color: var(--color-ee-text-secondary);
+                  border: 1px solid var(--color-ee-border);
+                  font-size: 0.72rem;
+                  font-weight: 500;
+                  padding: 2px 8px;
+                  border-radius: 999px;
+                ">${skill}</span>
+              </div>
+              <h3 style="
+                font-size: 1rem;
+                font-weight: 600;
+                color: var(--color-ee-text);
+                margin: 0 0 0.4rem 0;
+                line-height: 1.3;
+              ">${title}</h3>
+              <p style="
+                font-size: 0.85rem;
+                color: var(--color-ee-text-muted);
+                margin: 0 0 0.75rem 0;
+                line-height: 1.5;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+              ">${desc}</p>
+              <div style="font-size: 0.75rem; color: var(--color-ee-text-faint);">${date}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div style="margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--color-ee-text); margin: 0 0 0.25rem 0;">Tutorials</h1>
+        <p style="color: var(--color-ee-text-muted); margin: 0; font-size: 0.9rem;">${tutorials.length} tutorial${tutorials.length === 1 ? "" : "s"} generated</p>
+      </div>
+      <div style="
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.25rem;
+      ">
+        ${cards}
+      </div>
+    `;
+  }
+
+  async function init() {
+    const root = document.getElementById("tutorials-root")!;
+
+    let tutorials: TutorialMeta[] = [];
+    try {
+      const res = await fetch("/api/tutorials");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      tutorials = await res.json();
+    } catch {
+      root.innerHTML = `
+        <div style="color: var(--color-ee-text-muted); text-align: center; padding: 4rem 0;">
+          Failed to load tutorials. Is the API server running?
+        </div>
+      `;
+      return;
+    }
+
+    root.innerHTML =
+      tutorials.length === 0 ? renderEmpty() : renderGrid(tutorials);
+
+    // Wire up card clicks
+    root.querySelectorAll<HTMLElement>(".tutorial-card").forEach((card) => {
+      const openModal = () => {
+        const videoUrl = card.dataset.video ?? "";
+        openVideoModal(videoUrl);
+      };
+      card.addEventListener("click", openModal);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openModal();
+        }
+      });
+
+      // Hover effects
+      card.addEventListener("mouseenter", () => {
+        card.style.borderColor = "var(--color-ee-accent)";
+        card.style.transform = "translateY(-2px)";
+      });
+      card.addEventListener("mouseleave", () => {
+        card.style.borderColor = "var(--color-ee-border)";
+        card.style.transform = "translateY(0)";
+      });
+    });
+  }
+
+  function openVideoModal(videoUrl: string) {
+    const modal = document.getElementById("video-modal")!;
+    const video = document.getElementById("modal-video") as HTMLVideoElement;
+    video.src = videoUrl;
+    modal.style.display = "flex";
+    video.focus();
+  }
+
+  function closeVideoModal() {
+    const modal = document.getElementById("video-modal")!;
+    const video = document.getElementById("modal-video") as HTMLVideoElement;
+    video.pause();
+    video.src = "";
+    modal.style.display = "none";
+  }
+
+  // Modal close handlers
+  document
+    .getElementById("modal-close")!
+    .addEventListener("click", closeVideoModal);
+  document.getElementById("video-modal")!.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeVideoModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeVideoModal();
+  });
+
+  init();
+</script>

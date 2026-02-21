@@ -155,17 +155,16 @@ async function sync() {
     );
     console.warn(`  Remote was uploaded by ${meta.user} at ${meta.timestamp}`);
     console.warn(
-      "  Your local data/ will be overwritten in 3 seconds. Press Ctrl+C to abort.",
+      "  Remote files will be merged into local data/ (no deletions). Press Ctrl+C to abort.",
     );
     await Bun.sleep(3000);
   }
 
-  // Download and decode
+  // Download and decode — extract on top of existing data (additive, no deletions)
   console.log(`Downloading data from ${meta.user} (${meta.timestamp})...`);
 
   await $`gh gist view ${gistId} -f ee-data.b64 > /tmp/ee-data.b64`;
   await $`base64 -d -i /tmp/ee-data.b64 -o /tmp/${ARCHIVE}`;
-  await $`rm -rf ${DATA_DIR}`;
   await $`tar -xzf /tmp/${ARCHIVE} -C ${ROOT}`;
 
   console.log(

@@ -51,6 +51,6 @@ app.get("/api/health", (c) => {
 
 export default {
   port: 7892,
-  idleTimeout: 300,
+  idleTimeout: 255,
   fetch: app.fetch,
 };

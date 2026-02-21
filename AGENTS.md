@@ -31,13 +31,6 @@ bun run build
 # Format, lint, and auto-fix
 bun run check
 
-# CLI directly (from repo root)
-bun apps/cli/src/index.ts <command>
-# Or direct wrapper:
-./ee <command>
-# Or from apps/cli:
-bun run dev
-
 # Individual apps
 cd apps/web && bunx astro dev    # Web app (port 7891)
 cd apps/api && bun run dev       # API server (port 7892)
@@ -46,6 +39,8 @@ cd apps/api && bun run dev       # API server (port 7892)
 bunx turbo dev --filter=@experience-engine/web
 bunx turbo build --filter=@experience-engine/cli
 ```
+
+For the `ee` CLI commands (query, process, list, status), use the **`ee` skill**.
 
 ## Architecture
 
@@ -62,14 +57,7 @@ CORS allows `http://localhost:7891` (web app) on POST to `/api/*`.
 
 ### CLI (`apps/cli`)
 
-Runs on **Bun** (not Node). Entry point: `src/index.ts` with command dispatch pattern.
-
-Commands:
-
-- `process` — Build/resume a behavioral index from video files. Uses Google Gemini (`@ai-sdk/google`) for structured video analysis. Flags: `--index`, `--prompt`, `--model`, `--force`, `--limit`. Discovers top-level video files in `data/` (mp4, mov, m4v, avi, mkv, webm, mpeg, mpg). Outputs per-video timeline JSON with segments containing activity, workers, tools, materials, spatial context, safety notes, risk level, expertise/inefficiency signals, communication events, and ergonomic notes.
-- `query` — Keyword search across timeline segments. Flags: `--index`, `--limit`. Scores segments by token matching across all fields, sorted by relevance then timestamp.
-- `list` — Show all indices in `data/.ee/indices/` with processing progress.
-- `status` — Show processing progress for an index.
+Runs on **Bun** (not Node). Entry point: `src/index.ts` with command dispatch pattern. CLI usage is documented in the **`ee` skill** (`.claude/skills/ee/SKILL.md`) — use that skill for querying and managing video indices instead of duplicating CLI docs here.
 
 Data model: Each index has a `manifest.json` tracking video files and their processing status (pending/done/error). Behavioral timelines are stored as `timelines/<sha1>.timeline.json`.
 

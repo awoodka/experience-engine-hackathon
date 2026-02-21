@@ -17,7 +17,7 @@ const manifestSchema = z.object({
     .catch([]),
 });
 
-export default async function list(_args: string[]): Promise<void> {
+export default async function list(): Promise<void> {
   try {
     const entries = await readdir(INDICES_DIR, { withFileTypes: true });
     const dirs = entries.filter((e) => e.isDirectory());

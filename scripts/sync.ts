@@ -36,6 +36,7 @@ async function computeHash(): Promise<string> {
   const files: string[] = [];
 
   for await (const file of glob.scan({ cwd: DATA_DIR, onlyFiles: true })) {
+    if (file.startsWith("videos/") || file.startsWith("tmp/")) continue;
     files.push(file);
   }
 
@@ -80,8 +81,8 @@ async function upload() {
   const timestamp = new Date().toISOString();
   const meta: SyncMeta = { hash: localHash, user, timestamp };
 
-  // Create tarball of entire data/ directory
-  await $`tar -czf /tmp/${ARCHIVE} -C ${ROOT} data`;
+  // Create tarball of data/ directory, excluding videos (too large for gist)
+  await $`tar -czf /tmp/${ARCHIVE} -C ${ROOT} --exclude='data/videos' --exclude='data/tmp' data`;
 
   // Base64 encode it so it can live in a gist (gists are text-only)
   await $`base64 -i /tmp/${ARCHIVE} -o /tmp/ee-data.b64`;

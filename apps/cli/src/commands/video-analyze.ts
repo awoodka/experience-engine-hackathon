@@ -17,15 +17,30 @@ import { getFlag, getPositionals } from "../args.js";
 import { PROJECT_ROOT } from "../paths.js";
 
 export default async function videoAnalyze(args: string[]): Promise<void> {
-  const positionals = getPositionals(args);
+  const validThinkLevels = new Set(["low", "medium", "high"]);
+  const rawThinkValue = getFlag(args, "think");
+  const hasThinkFlag = args.includes("--think");
+  const thinkHasValue =
+    rawThinkValue !== undefined && validThinkLevels.has(rawThinkValue);
+  const positionals = getPositionals(
+    args,
+    hasThinkFlag && !thinkHasValue ? ["--think"] : [],
+  );
   const filePath = positionals[0];
   const prompt = positionals[1];
   const modelId = getFlag(args, "model") ?? env.EE_GEMINI_MODEL;
   const schemaJson = getFlag(args, "schema");
+  const thinkingConfig = {
+    thinkingLevel: hasThinkFlag
+      ? thinkHasValue
+        ? rawThinkValue
+        : "high"
+      : "minimal",
+  };
 
   if (!filePath || !prompt) {
     console.error(
-      "Usage: ee video-analyze <file> \"<prompt>\" [--model <id>] [--schema '<json-schema>']",
+      "Usage: ee video-analyze <file> \"<prompt>\" [--model <id>] [--schema '<json-schema>'] [--think [low|medium|high]]",
     );
     process.exit(1);
   }
@@ -72,6 +87,11 @@ export default async function videoAnalyze(args: string[]): Promise<void> {
       model: google(modelId),
       schema: jsonSchema(parsed),
       messages,
+      providerOptions: {
+        google: {
+          thinkingConfig,
+        },
+      },
     });
 
     console.log(JSON.stringify(object, null, 2));
@@ -79,6 +99,11 @@ export default async function videoAnalyze(args: string[]): Promise<void> {
     const { text } = await generateText({
       model: google(modelId),
       messages,
+      providerOptions: {
+        google: {
+          thinkingConfig,
+        },
+      },
     });
 
     console.log(text);

@@ -18,11 +18,13 @@
     "astro": "^5.17.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "hono": "^4.12.1",
     "lucide-react": "^0.575.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "streamdown": "^1.0.0",
+    "superjson": "^2.2.6",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.0",
     "use-stick-to-bottom": "^1.1.3"

@@ -8,9 +8,12 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target bun"
   },
   "dependencies": {
+    "@hono/standard-validator": "^0.2.2",
     "ai": "^6.0.97",
     "ai-sdk-provider-claude-code": "^3.0.0",
-    "hono": "^4.7.0"
+    "hono": "^4.7.0",
+    "superjson": "^2.2.6",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -22,6 +22,7 @@ export interface PlayStep {
   startSec: number;
   endSec: number;
   label?: string;
+  description?: string; // What this clip is intended to show — not rendered, used for LM review
   durationSec?: number;
 }
 
@@ -46,10 +47,7 @@ export type Step = NarrateStep | PlayStep | PauseStep | TakeawayStep;
 
 export interface TutorialScript {
   title: string;
-  type: string;
   description: string;
-  trade?: string;
-  skill?: string;
   generatedAt: string;
   steps: Step[];
 }
@@ -57,8 +55,6 @@ export interface TutorialScript {
 export interface TutorialMeta {
   id: string;
   title: string;
-  trade: string;
-  skill: string;
   description: string;
   generatedAt: string;
   videoPath: string;

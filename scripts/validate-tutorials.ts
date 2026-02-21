@@ -24,6 +24,7 @@ const PlayStep = z.object({
   startSec: z.number().nonnegative(),
   endSec: z.number().positive(),
   label: z.string().optional(),
+  description: z.string().min(1).optional(), // Intent for LM review — not rendered
   durationSec: z.number().positive().optional(),
 });
 
@@ -60,10 +61,7 @@ const Step = z.discriminatedUnion("type", [
 
 const TutorialScript = z.object({
   title: z.string().min(1),
-  type: z.literal("tutorial"),
   description: z.string().min(1),
-  trade: z.string().min(1).optional(),
-  skill: z.string().min(1).optional(),
   generatedAt: z.string().min(1),
   steps: z.array(Step).min(1),
 });
@@ -71,8 +69,6 @@ const TutorialScript = z.object({
 const TutorialMeta = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  trade: z.string().min(1),
-  skill: z.string().min(1),
   description: z.string().min(1),
   generatedAt: z.string().min(1),
   videoPath: z.string().min(1),
@@ -80,13 +76,43 @@ const TutorialMeta = z.object({
   configHash: z.string().min(1).optional(),
 });
 
+// ─── Duration calculation (mirrors tutorial-render logic) ─────────────────────
+
+const MAX_TUTORIAL_DURATION_SEC = 20;
+
+type ParsedStep = z.infer<typeof Step>;
+
+function computeStepDuration(step: ParsedStep): number {
+  switch (step.type) {
+    case "narrate":
+    case "takeaway":
+      return (
+        step.durationSec ??
+        Math.min(5, Math.max(2, Math.ceil(step.text.length / 20)))
+      );
+    case "play":
+      return (
+        step.durationSec ??
+        Math.max(1, Math.min(step.endSec - step.startSec, 20))
+      );
+    case "pause":
+      return (
+        step.durationSec ??
+        Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)))
+      );
+  }
+}
+
 // ─── Extra semantic checks ────────────────────────────────────────────────────
 
 function checkSemantics(script: z.infer<typeof TutorialScript>): string[] {
   const errors: string[] = [];
 
+  let totalDuration = 0;
+
   for (let i = 0; i < script.steps.length; i++) {
     const step = script.steps[i];
+    totalDuration += computeStepDuration(step);
 
     if (step.type === "play") {
       if (step.endSec <= step.startSec) {
@@ -115,6 +141,12 @@ function checkSemantics(script: z.infer<typeof TutorialScript>): string[] {
         );
       }
     }
+  }
+
+  if (totalDuration > MAX_TUTORIAL_DURATION_SEC) {
+    errors.push(
+      `total duration ${totalDuration.toFixed(1)}s exceeds ${MAX_TUTORIAL_DURATION_SEC}s limit`,
+    );
   }
 
   return errors;
@@ -149,6 +181,10 @@ async function main() {
     try {
       raw = JSON.parse(await readFile(filePath, "utf8"));
     } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        // Not a tutorial directory — skip silently
+        continue;
+      }
       console.error(
         `✖ ${label}: invalid JSON — ${err instanceof Error ? err.message : err}`,
       );

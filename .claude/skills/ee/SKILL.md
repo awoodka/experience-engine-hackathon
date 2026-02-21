@@ -120,9 +120,39 @@ renders inline.
 
 ### `./ee tutorial-render <slug>`
 
-Reads a tutorial script from `data/tutorials/<slug>/config.json` and renders it
-into an MP4 using ffmpeg. Returns `{"type": "clip", "path": "data/tmp/<slug>.mp4"}`.
+Renders `data/tutorials/<slug>/config.json` into an MP4. Outputs:
+
+- `data/tutorials/<slug>/video.mp4` — the rendered video
+- `data/tutorials/<slug>/thumb.jpg` — thumbnail (first frame)
+- `data/tutorials/<slug>/meta.json` — metadata for the web UI
+
+Returns `{"type": "clip", "path": "data/tutorials/<slug>/video.mp4"}`.
 The video is **not** shown automatically — use `./ee present <path>` when ready.
+
+### `./ee tutorial-review <slug>`
+
+Reads `config.json` and `video.mp4` for the given slug, then asks Gemini to
+verify every step in the rendered video against its intent.
+
+Returns structured JSON:
+
+```json
+{
+  "pass": true,
+  "steps": [
+    { "stepIndex": 0, "stepType": "narrate", "ok": true, "issue": "" },
+    {
+      "stepIndex": 1,
+      "stepType": "play",
+      "ok": false,
+      "issue": "Clip shows wrong area of site."
+    }
+  ],
+  "summary": "Step 1 shows the wrong clip. All other steps are correct."
+}
+```
+
+Fix any `ok: false` steps in config.json, re-render, and re-review until `pass` is true.
 
 ## Behavioral Index
 
@@ -251,6 +281,118 @@ a still frame, then send that annotated frame back to Gemini with `video-analyze
 
 This lets you close the loop — the agent generates a bounding box, renders it
 onto the video frame, and then verifies it actually highlights the right thing.
+
+## Tutorial Creation
+
+**CRITICAL: Follow every step below when creating a tutorial. Do NOT skip any step.**
+
+### Writing Style — Say What You See
+
+Every video should be immediately understandable. A person watching it should know exactly what they're looking at without having to decode a metaphor.
+
+**Be literal and specific.** Describe what is actually on screen. Name the object, the action, the problem. Never use creative language that replaces what's visually obvious with something abstract.
+
+- **Bad:** "Watch as our hero embarks on an archaeological expedition."
+- **Good:** "Watch this worker dig through an unorganized tool bin before he can start work."
+
+**No metaphors for physical things.** If you see a messy bin, say "messy bin." If you see a worker hesitating, say "he stops and doesn't move." Metaphors obscure what's happening and confuse the viewer.
+
+**Keep it short and direct.** Every word should earn its place. Cut anything decorative. If a sentence doesn't tell the viewer what to look at or why it matters, delete it.
+
+**Make it flow.** Each step should lead naturally to the next:
+
+- **Narrate**: set up exactly what the viewer is about to see
+- **Play/Pause**: show it — no surprise, no reinterpretation
+- **Takeaway**: the one concrete thing to do differently
+
+**Write for a person, not a document.** Imagine explaining this to a coworker standing next to you. Would you say "suboptimal tool-retrieval workflow"? No — you'd say "he can't find his tape measure." Write like that.
+
+**Bad example:** "Observe the worker navigating a complex material-retrieval scenario."
+**Good example:** "He's looking for a fitting. It's right there. He doesn't know that yet."
+
+### Duration Limit
+
+Tutorials MUST be **20 seconds or less** total. The renderer and validator will
+both reject tutorials that exceed this limit. Budget your steps carefully:
+
+- **narrate/takeaway**: `min(5, max(2, ceil(text.length / 20)))` seconds
+- **play**: `endSec - startSec` (capped at 20s per clip)
+- **pause**: `min(4, max(2, ceil(description.length / 30)))` seconds — **pauses are short by default (2–4s)**
+
+Before writing `config.json`, mentally add up the durations. A 20-second video
+typically has 3–5 short steps, not 10. Keep narration text short. Keep play clips
+to 2–4 seconds each. Keep pause descriptions to one sentence — pauses are meant
+to point at something specific, not to linger.
+
+### Step-by-Step Workflow
+
+1. **Research** — Search indices and analyze video to find the right moments.
+   Extract frames and clips. Verify timestamps are accurate.
+
+2. **Draft config.json** — Write the tutorial script. Calculate the total
+   duration before saving. If it exceeds 20 seconds, cut steps or shorten text.
+
+   Every `play` step MUST have a `description` field stating exactly what the
+   clip is supposed to show. This is not rendered in the video — it exists so
+   the review agent can verify that the clip actually shows the right thing.
+
+   ```json
+   {
+     "type": "play",
+     "video": "...",
+     "startSec": 4,
+     "endSec": 8,
+     "label": "Searching the Bin",
+     "description": "Worker's hands visible digging through a disorganized orange bin full of mixed tools and hardware."
+   }
+   ```
+
+3. **Run `bun check`** — This runs the tutorial validator. Fix any errors before
+   proceeding. Do NOT skip this step.
+
+4. **Render** — Run `./ee tutorial-render <slug>`. It will fail if the tutorial
+   exceeds 20 seconds.
+
+5. **Review the video against the script** — This is MANDATORY. Run:
+
+   ```bash
+   ./ee tutorial-review <slug>
+   ```
+
+   This reads `config.json` and `video.mp4` together and asks Gemini to verify
+   every step. Returns structured JSON: `{ pass, steps: [{stepIndex, stepType, ok, issue}], summary }`.
+
+   If `pass` is false or any step has `ok: false`, fix those steps in config.json,
+   re-run `bun check`, re-render, and re-review. Do NOT present until `pass` is true.
+
+6. **Verify every bounding box individually** — For each pause step with a
+   `region`, extract the annotated frame and confirm the box is right:
+
+   ```
+   ./ee video-frame data/videos/<file> <seconds> --region x,y,w,h
+   ./ee video-analyze <frame.jpg> "Does the red box highlight <what description says>? Is it accurate?"
+   ```
+
+   Fix → `bun check` → re-render → re-review if the box is wrong.
+
+7. **Fix and re-render** — Update config.json, re-run `bun check`, re-render,
+   and re-review from step 5. Do NOT present until the review is clean.
+
+8. **Present** — ONLY after a clean review:
+   `./ee present data/tutorials/<slug>/video.mp4`
+
+**NEVER present a video without a clean review against the config.json.**
+
+### Common Mistakes to Avoid
+
+- Writing 10 steps when 4 would fit the 20-second limit
+- Using long narration text (each sentence costs 2–5 seconds)
+- Using creative metaphors that replace what's literally shown ("archaeological expedition" instead of "he's digging through a messy bin")
+- Writing pause descriptions that don't say exactly what the bounding box is pointing at
+- Guessing bounding box coordinates without verifying them on a frame
+- Presenting the video immediately after rendering without reviewing it
+- Forgetting to run `bun check` after modifying config.json
+- Using jargon or formal language instead of plain, conversational words
 
 ## Self-Correction
 

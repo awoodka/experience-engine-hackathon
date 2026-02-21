@@ -11,9 +11,10 @@
  *   play               — trimmed clip from source video with label bar
  *   pause              — single frame with bounding box + annotation text
  */
-import { mkdir, readFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 import { TUTORIALS_DIR, VIDEOS_DIR, TMP_DIR } from "../paths.js";
 import type {
   Step,
@@ -24,6 +25,29 @@ import type {
 
 const LINE_HEIGHT = 44;
 const FONT = "Arial";
+const MAX_TUTORIAL_DURATION_SEC = 20;
+
+/** Compute the effective duration of a step (mirrors validate-tutorials logic). */
+function computeStepDuration(step: Step): number {
+  switch (step.type) {
+    case "narrate":
+    case "takeaway":
+      return (
+        step.durationSec ??
+        Math.min(5, Math.max(2, Math.ceil(step.text.length / 20)))
+      );
+    case "play":
+      return (
+        step.durationSec ??
+        Math.max(1, Math.min(step.endSec - step.startSec, 20))
+      );
+    case "pause":
+      return (
+        step.durationSec ??
+        Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)))
+      );
+  }
+}
 
 /** Escape text for ffmpeg drawtext text= parameter. */
 function esc(text: string): string {
@@ -129,6 +153,18 @@ export default async function scriptRender(args: string[]): Promise<void> {
     process.exit(1);
   }
 
+  // Pre-flight duration check
+  const totalDuration = script.steps.reduce(
+    (sum, s) => sum + computeStepDuration(s),
+    0,
+  );
+  if (totalDuration > MAX_TUTORIAL_DURATION_SEC) {
+    console.error(
+      `Tutorial duration ${totalDuration.toFixed(1)}s exceeds ${MAX_TUTORIAL_DURATION_SEC}s limit. Reduce steps or shorten text/clips.`,
+    );
+    process.exit(1);
+  }
+
   await mkdir(TMP_DIR, { recursive: true });
 
   const segmentPaths: string[] = [];
@@ -186,8 +222,9 @@ export default async function scriptRender(args: string[]): Promise<void> {
   const concatContent = segmentPaths.map((p) => `file '${p}'`).join("\n");
   await Bun.write(concatListPath, concatContent);
 
-  // Concatenate all segments
-  const outputPath = resolve(TMP_DIR, `${slug}.mp4`);
+  // Concatenate all segments directly into the tutorial directory
+  const tutorialDir = resolve(TUTORIALS_DIR, slug);
+  const outputPath = resolve(tutorialDir, "video.mp4");
   const concatArgs = [
     "ffmpeg",
     "-y",
@@ -219,8 +256,57 @@ export default async function scriptRender(args: string[]): Promise<void> {
   await unlink(concatListPath).catch(() => {});
   await unlink(segmentDir).catch(() => {});
 
-  const relativePath = `data/tmp/${slug}.mp4`;
-  console.log(JSON.stringify({ type: "clip", path: relativePath }));
+  // --- Finalize: thumbnail + meta.json ---
+  const destThumbPath = resolve(tutorialDir, "thumb.jpg");
+  const metaPath = resolve(tutorialDir, "meta.json");
+
+  // Extract thumbnail (first frame of rendered video)
+  const thumbArgs = [
+    "ffmpeg",
+    "-y",
+    "-ss",
+    "0",
+    "-i",
+    outputPath,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "3",
+    "-update",
+    "1",
+    destThumbPath,
+  ];
+  const thumbProc = Bun.spawn(thumbArgs, { stdout: "pipe", stderr: "pipe" });
+  await thumbProc.exited;
+
+  // Compute config hash
+  const configRaw = await readFile(scriptPath, "utf8");
+  const configHash = createHash("sha256")
+    .update(configRaw)
+    .digest("hex")
+    .slice(0, 12);
+
+  // Write meta.json
+  const meta = {
+    id: slug,
+    title: script.title ?? slug,
+    description: script.description ?? "",
+    generatedAt: script.generatedAt ?? new Date().toISOString(),
+    videoPath: `data/tutorials/${slug}/video.mp4`,
+    thumbnailPath: `data/tutorials/${slug}/thumb.jpg`,
+    configHash,
+    durationSec: totalDuration,
+  };
+  await writeFile(metaPath, JSON.stringify(meta, null, 2));
+  console.error(`  ✓ meta.json written`);
+
+  console.log(
+    JSON.stringify({
+      type: "clip",
+      path: `data/tutorials/${slug}/video.mp4`,
+      durationSec: totalDuration,
+    }),
+  );
 }
 
 /** Render a text card with centered multi-line text. */
@@ -334,7 +420,7 @@ async function renderPauseStep(
 
   const holdDuration =
     step.durationSec ??
-    Math.min(6, Math.max(3, Math.ceil(step.description.length / 25)));
+    Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)));
   const vfParts: string[] = [
     "scale=1280:720:force_original_aspect_ratio=decrease",
     "pad=1280:720:-1:-1:color=black",

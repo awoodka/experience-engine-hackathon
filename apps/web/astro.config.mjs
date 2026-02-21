@@ -8,6 +8,28 @@ import tailwindcss from "@tailwindcss/vite";
 
 const dataDir = resolve(import.meta.dirname, "../../data");
 
+/** Vite plugin that rewrites /chat/<id> to /chat so Astro serves chat.astro. */
+function rewriteChatRoutes() {
+  return {
+    name: "rewrite-chat-routes",
+    configureServer(/** @type {any} */ server) {
+      server.middlewares.use(
+        (
+          /** @type {any} */ req,
+          /** @type {any} */ _res,
+          /** @type {any} */ next,
+        ) => {
+          const url = req.url?.split("?")[0] ?? "";
+          if (/^\/chat\/.+/.test(url)) {
+            req.url = "/chat";
+          }
+          next();
+        },
+      );
+    },
+  };
+}
+
 /** Vite plugin that serves files from the project data/ directory at /data/. */
 function serveDataDir() {
   return {
@@ -80,7 +102,7 @@ export default defineConfig({
   server: { port: 7891 },
 
   vite: {
-    plugins: [tailwindcss(), serveDataDir()],
+    plugins: [tailwindcss(), rewriteChatRoutes(), serveDataDir()],
     server: {
       proxy: {
         "/api": "http://localhost:7892",

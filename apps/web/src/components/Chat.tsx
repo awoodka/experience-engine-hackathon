@@ -10,6 +10,7 @@ import type {
   ReasoningUIPart,
   ToolUIPart,
   UIMessage,
+  UIDataTypes,
 } from "ai";
 import { Streamdown } from "streamdown";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,13 @@ const SUGGESTIONS = [
   },
 ];
 
-type ChatMessage = UIMessage;
+/** Custom data parts sent by the API media transform. */
+interface MediaDataTypes extends UIDataTypes {
+  video: { path: string };
+  image: { path: string };
+}
+
+type ChatMessage = UIMessage<unknown, MediaDataTypes>;
 type ChatToolPart = ToolUIPart | DynamicToolUIPart;
 
 function ToolPart({ part }: { part: ChatToolPart }) {
@@ -189,22 +196,6 @@ function ReasoningPart({ part }: { part: ReasoningUIPart }) {
   );
 }
 
-/** Try to parse a video output from a tool part's output. */
-function parseVideoOutput(
-  output: unknown,
-): { type: string; path: string } | null {
-  try {
-    const text = typeof output === "string" ? output : JSON.stringify(output);
-    const parsed = JSON.parse(text);
-    if (parsed?.type === "video" && typeof parsed.path === "string") {
-      return parsed;
-    }
-  } catch {
-    // not video output
-  }
-  return null;
-}
-
 function VideoPlayer({ path }: { path: string }) {
   // Rewrite data/ paths to /data/ for the Vite middleware
   const src = path.startsWith("data/") ? `/${path}` : path;
@@ -219,6 +210,24 @@ function VideoPlayer({ path }: { path: string }) {
           </span>
         </div>
         <video controls className="w-full" src={src} preload="metadata" />
+      </div>
+    </div>
+  );
+}
+
+function ImageViewer({ path }: { path: string }) {
+  const src = path.startsWith("data/") ? `/${path}` : path;
+
+  return (
+    <div className="animate-fade-in mb-6">
+      <div className="overflow-hidden rounded-2xl border border-[var(--color-ee-border)] bg-black">
+        <div className="flex items-center gap-2 border-b border-[var(--color-ee-border)] bg-[var(--color-ee-surface)] px-4 py-2">
+          <Image className="h-4 w-4 text-[var(--color-ee-accent)]" />
+          <span className="text-[13px] font-medium text-[var(--color-ee-text-secondary)]">
+            Extracted Frame
+          </span>
+        </div>
+        <img src={src} alt="Extracted frame" className="w-full" />
       </div>
     </div>
   );
@@ -375,14 +384,24 @@ export default function Chat() {
                     }
 
                     if (isToolUIPart(part)) {
-                      const videoOutput = parseVideoOutput(part.output);
+                      return <ToolPart key={key} part={part} />;
+                    }
+
+                    if (part.type === "data-video") {
                       return (
-                        <Fragment key={key}>
-                          <ToolPart part={part} />
-                          {videoOutput && (
-                            <VideoPlayer path={videoOutput.path} />
-                          )}
-                        </Fragment>
+                        <VideoPlayer
+                          key={key}
+                          path={(part.data as { path: string }).path}
+                        />
+                      );
+                    }
+
+                    if (part.type === "data-image") {
+                      return (
+                        <ImageViewer
+                          key={key}
+                          path={(part.data as { path: string }).path}
+                        />
                       );
                     }
 

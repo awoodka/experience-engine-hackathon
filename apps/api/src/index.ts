@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { consumeStream, convertToModelMessages, streamText } from "ai";
+import {
+  consumeStream,
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+} from "ai";
 import { claudeCode } from "ai-sdk-provider-claude-code";
 import { resolve } from "node:path";
 import { readdir, readFile } from "node:fs/promises";
@@ -10,6 +15,7 @@ import {
   CLAUDE_CODE_SETTING_SOURCES,
   CLAUDE_CODE_SYSTEM_PROMPT_APPEND,
 } from "./claude-profile";
+import { createMediaTransform } from "./media-transform";
 
 const projectRoot = resolve(import.meta.dirname, "../../..");
 
@@ -48,9 +54,12 @@ app.post("/api/chat", async (c) => {
     },
   });
 
-  return result.toUIMessageStreamResponse({
-    sendError: true,
-    sendReasoning: true,
+  const stream = result
+    .toUIMessageStream({ sendError: true, sendReasoning: true })
+    .pipeThrough(createMediaTransform());
+
+  return createUIMessageStreamResponse({
+    stream,
     consumeSseStream: consumeStream,
   });
 });

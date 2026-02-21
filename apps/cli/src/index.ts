@@ -4,28 +4,51 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 const commands: Record<string, (args: string[]) => Promise<void>> = {
-  process: (await import("./commands/process.js")).default,
-  query: (await import("./commands/query.js")).default,
-  score: (await import("./commands/score.js")).default,
-  list: (await import("./commands/list.js")).default,
-  status: (await import("./commands/status.js")).default,
-  tutorial: (await import("./commands/tutorial.js")).default,
+  "video-list": (await import("./commands/video-list.js")).default,
+  "video-clip": (await import("./commands/video-clip.js")).default,
+  "video-analyze": (await import("./commands/video-analyze.js")).default,
+  "video-frame": (await import("./commands/video-frame.js")).default,
+  "index-list": (await import("./commands/index-list.js")).default,
+  "index-read": (await import("./commands/index-read.js")).default,
+  "index-write": (await import("./commands/index-write.js")).default,
+  "index-create": (await import("./commands/index-create.js")).default,
+  "script-render": (await import("./commands/script-render.js")).default,
+  "script-verify": (await import("./commands/script-verify.js")).default,
 };
 
 if (!command || command === "--help" || command === "-h") {
   console.log(`
   ee - Experience Engine CLI
 
-  Commands:
-    ee process [--index <name>] [--prompt <path>] [--model <id>] [--force] [--limit <n>]
-                                                    Build/resume a behavioral index
-    ee query <search> [--index <name>] [--limit <n>]
-                                                    Search an index
-    ee score [--index <name>] [--output <path>] [--limit <n>]
-                                                    Compute heuristic scores from timelines
-    ee list                                         Show all indices
-    ee status [--index <name>]                      Show index processing progress
-    ee tutorial render <id> [--model <id>]           Render data/tutorials/scripts/<id>.json → MP4
+  Video Tools:
+    ee video-list                                     List video files in data/
+    ee video-clip <file> --start <sec> [--end <sec>] [--region x,y,w,h]
+                                                        Extract a clip to MP4
+    ee video-analyze <file> "<prompt>" [--model <id>] [--schema '<json>']
+                                                        Analyze video with Gemini
+    ee video-frame <file> <seconds> [--region x,y,w,h] Extract a single frame
+    ee video-frame --index <idx> --file <path> --entry <n>
+                                                        Frame from index entry
+
+  Index Tools:
+    ee index-list                                     List all indices and files
+    ee index-create <name>                            Scaffold a new index
+    ee index-read <index> <path>                      Read file from index
+    ee index-read <index> --search "<query>" [--raw] [--top N]
+                                                      Search across index files
+    ee index-read <index> --dump [--raw] [--stats] [--top N]
+                                                      Dump all entries (with optional filters)
+    ee index-read all --dump [--raw] [--stats]        Cross-index dump (all indices)
+    ee index-read safety,productivity --search "<q>"  Cross-index search
+    ee index-write <index> <path>                     Write data to index (stdin)
+
+    Shared flags: [--field <name> --value <val>] [--after <sec> --before <sec>]
+      --raw    Strip wrapper, output flat data array
+      --stats  Aggregate statistics (field distributions, numeric summaries)
+
+  Tutorial Tools:
+    ee script-render <slug>                           Render tutorial to MP4
+    ee script-verify <slug>                           Extract frames for review
   `);
   process.exit(0);
 }

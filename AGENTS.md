@@ -9,7 +9,8 @@ This repository is a Bun + Turborepo monorepo.
 - `apps/web`: Astro + React frontend (dev server on `7891`, proxies `/api` to `7892`).
 - `scripts/sync.ts`: team data sync/upload flow via secret GitHub Gist.
 - `data/videos/`: source video files.
-- `data/indices/`: generated index artifacts (queryable by `./ee` CLI).
+- `data/index/`: behavioral indices (queryable by `./ee` CLI). Each index has `entries/<video>.json`.
+- `data/tutorials/`: agent-generated video tutorial scripts.
 - `data/tmp/`: temporary files (extracted frames, etc.).
 - `packages/`: reserved for shared packages (currently empty).
 
@@ -22,8 +23,7 @@ Run from repo root unless noted.
 - `bun run build`: build all workspaces (`dist/`, `.astro/` outputs).
 - `bun run check`: format + lint fix (`prettier --write` and `eslint --fix`).
 - `bun run ee --help` or `./ee --help`: inspect CLI commands.
-- `./ee tutorial render <id>`: render `data/tutorials/videos/<id>.json` → `data/tutorials/<id>.mp4`. The tutorial JSON is authored by the Claude chatbot using real timestamps from `./ee query`.
-- `bun run sync` / `bun run upload`: pull/push `data/indices` with `gh` CLI.
+- `bun run sync` / `bun run upload`: pull/push `data/` with `gh` CLI.
 
 ## Coding Style & Naming Conventions
 
@@ -50,7 +50,7 @@ For PRs, include:
 - how to validate (commands run),
 - linked issue/context,
 - screenshots or short clips for `apps/web` UI changes,
-- notes for env/data/schema impacts (especially `data/indices` and `.env` usage).
+- notes for env/data/schema impacts (especially `data/index` and `.env` usage).
 
 ## Security & Configuration Tips
 

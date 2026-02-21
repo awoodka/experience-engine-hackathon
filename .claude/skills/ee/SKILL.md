@@ -1,121 +1,191 @@
 ---
 name: ee
+auto-apply: true
 description: Query and manage Experience Engine video behavioral indices. Use when the user asks about worker behavior, activities, expertise, inefficiencies, safety, tools, or anything related to construction site video analysis.
 allowed-tools: Bash(./ee *), Read, Write
 ---
 
-# Experience Engine CLI
+# Experience Engine CLI Tools
 
-Use the `./ee` CLI to search behavioral timelines and compute heuristic expertise scores from construction site videos.
+The `./ee` CLI provides composable primitives for analyzing construction-site video
+and managing behavioral indices. All commands output JSON to stdout.
 
-## Commands
+## Data Layout
 
-- `./ee list` — show available indices
-- `./ee query "<terms>" [--index <name>] [--limit <n>]` — search segments
-- `./ee status [--index <name>]` — show processing progress
-- `./ee process [--index <name>] [--force] [--limit <n>]` — build index
-- `./ee tutorial render <id>` — render `data/tutorials/scripts/<id>.json` → MP4
-
-**Rule:** Never assume timeline or manifest field names. Read the file first.
-
-## Score output schema
-
-Each video in the output has:
-
-### `scores` (0–100, higher = more expert-like)
-
-| Score | Meaning |
-|-------|---------|
-| `hesitationScore` | Fewer delays, reversals, excessive tool switching before committing |
-| `coordinationScore` | Better timing between workers (quick handoffs, less wait-on-other) |
-| `attentionScore` | More check-before-act (inspect/measure/verify before risky tasks) |
-| `smoothnessScore` | Steadier execution, fewer micro-stops and choppy segments |
-| `overallScore` | Average of the four dimension scores |
-
-### `features` (raw metrics used to compute scores)
-
-| Feature | Meaning | Expert-like |
-|---------|---------|-------------|
-| `medianGapSec` | Median idle time between consecutive tasks (sec) | Lower (e.g. ~5s) |
-| `toolSwitchesPerMin` | Tool switches per minute | Lower (e.g. ~2) |
-| `reworkCount` | Start→stop→restart same task within 30s | Lower |
-| `handoffLatencySec` | Time from carry end to install start (sec) | Lower |
-| `handoffCount` | Number of carry→install handoffs detected | Depends on task |
-| `waitTimeSec` | Idle time during multi-worker segments | Lower |
-| `checkBeforeActRate` | P(risky task has check within 10s before) 0–1 | Higher (e.g. 0.85+) |
-| `missedCheckCount` | Risky tasks without preceding check | Lower |
-| `verificationDiversity` | Distinct check-type activities | Higher |
-| `segmentDurationCv` | Coefficient of variation of segment lengths | Lower |
-| `microStopCount` | Very short segments (<5s) | Lower |
-
-## How to use scores for teaching inexperienced workers
-
-1. **Identify high-scoring videos** — Sort by `overallScore` or a specific dimension (e.g. `attentionScore`) to find exemplar clips.
-2. **Translate scores into behaviors** — Map scores to implicit intent:
-   - **Attention** → "Check before acting: inspect, measure, or verify before cutting, drilling, lifting, or pressing."
-   - **Hesitation** → "Reduce gaps between tasks and avoid switching tools frequently."
-   - **Coordination** → "Align handoffs with partners; minimize wait time."
-   - **Smoothness** → "Work in longer, steadier segments instead of stop-start bursts."
-3. **Give actionable targets** — e.g. "Aim for check-before-act rate ≥ 0.8; experts in this footage average 0.85."
-4. **Combine with `ee query`** — Use scores to rank/select videos, then `ee query "inspect before"` or `ee query "handoff"` to find timestamped segments that illustrate those behaviors.
-
-## General workflow
-
-1. `./ee list` to see indices
-2. `./ee query "<terms>"` to find relevant segments
-3. `./ee score` for quantitative expertise scores and teaching guidance
-4. Present findings with video names, timestamps, scores, and actionable guidance
-
-If no indices exist, tell the user to add videos to `data/` and run `./ee process`.
-
----
-
-## Tutorial authoring
-
-When the user asks for a tutorial, the goal is to identify what separates the most experienced workers from the least, then teach those specific behaviors. Never invent timestamps — always source them from query results or timeline files.
-
-**1. Score all videos:** `./ee score` — rank by `overallScore`. Identify the top scorer(s) (most experienced) and bottom scorer(s) (least experienced).
-
-**2. Analyze the gap:** Compare scores and features between top and bottom. Find the dimensions with the largest spread (e.g. expert `attentionScore: 88`, novice `attentionScore: 32`). Those gaps define what the tutorial teaches. Reason explicitly: "The biggest difference is X, driven by feature Y."
-
-**3. Find expert clips:** `./ee query "<behavior from gap>" --limit 15` searching only within the top-scoring video(s). Note video filename, startSec, endSec. Get exact timestamps if needed by reading `data/.ee/indices/default/timelines/<file>.timeline.json`.
-
-**4. Write** `data/tutorials/scripts/<id>.json` — structure the tutorial as: introduce the expert/novice gap → show expert behavior with clips → highlight what to look for with pause steps → close with an actionable takeaway tied to a specific feature target (e.g. "aim for checkBeforeActRate ≥ 0.8"):
-
-```json
-{
-  "title": "Short title",
-  "type": "tutorial",
-  "description": "One sentence describing what this teaches.",
-  "trade": "<inferred from footage: Masonry, Carpentry, Plumbing, Electrical, etc.>",
-  "skill": "<specific skill: Mortar Application, Pipe Threading, etc.>",
-  "generatedAt": "<ISO timestamp>",
-  "steps": [
-    { "type": "narrate", "text": "Intro text." },
-    {
-      "type": "play",
-      "video": "filename.mp4",
-      "startSec": 39,
-      "endSec": 47,
-      "label": "Optional caption"
-    },
-    {
-      "type": "pause",
-      "video": "filename.mp4",
-      "timestampSec": 43,
-      "description": "What to notice.",
-      "region": { "x": 0.36, "y": 0.44, "w": 0.23, "h": 0.15 }
-    },
-    { "type": "takeaway", "text": "Key lesson." }
-  ]
-}
+```
+data/
+  index/
+    <name>/
+      schema.json                     # Entry shape (JSON Schema) — read before writing
+      entries/<video>.json            # One file per source video, array of timestamped items
+  tutorials/videos/<slug>.json        # Agent-generated video tutorial scripts
+  videos/                             # Source video files
+  tmp/                                # Temporary files (frames, clips)
 ```
 
-**Step types:**
+Every index has a `schema.json` that defines the entry structure. Read it before
+generating entries. Every entry file is a JSON array of timestamped items, one
+file per source video.
 
-- `narrate` — white text card, 6s. Required: `text`
-- `play` — footage clip. Required: `video`, `startSec`, `endSec` (endSec > startSec, 5–45s). Optional: `label`
-- `pause` — freeze frame, 5s. Required: `video`, `timestampSec`, `description`. Optional: `region` (amber box, values 0–1)
-- `takeaway` — amber text card, 7s. Required: `text`
+## Tools
 
-**5. Render:** `./ee tutorial render <id>`
+### `./ee video-list`
+
+Lists video files in `data/videos/`. Returns `[{name, path, sizeBytes}]`.
+
+### `./ee video-clip <file> --start <sec> [--end <sec>] [--region x,y,w,h]`
+
+Extracts a clip from a video and saves it as an MP4 in `data/tmp/clips/`.
+Returns `{"type": "video", "path": "data/tmp/clips/..."}`. The frontend renders
+this as an inline video player so the user can watch the clip immediately.
+
+- The MP4 file persists, so you can pass it to `video-analyze` or other commands.
+- Optional `--region` draws a red bounding box (normalized 0–1 coordinates).
+
+### `./ee video-analyze <file> "<prompt>" [--model <id>] [--schema '<json-schema>']`
+
+Sends a video (or clip) to Gemini with your prompt.
+
+- **Without `--schema`**: returns raw text.
+- **With `--schema`**: enforces structured output via Gemini's JSON mode.
+- To analyze a specific section, extract a clip first with `video-clip` and pass
+  the resulting MP4 file to this command.
+
+### `./ee video-frame <file> <seconds> [--region x,y,w,h]`
+
+Extracts a JPEG frame at the given timestamp. Optionally draws a red bounding
+box when `--region` is provided (normalized 0–1 coordinates).
+Returns `{path, seconds, region?}`. Use the Read tool to view the image.
+
+**Entry mode**: Pull video, timestamp, and region from an index entry:
+
+```
+./ee video-frame --index <index> --file <subpath> --entry <n>
+```
+
+### `./ee index-list`
+
+Lists all indices and their files. Returns `[{index, files: [...]}]`.
+
+### `./ee index-create <name>`
+
+Scaffolds a new index directory at `data/index/<name>/entries/`.
+
+### `./ee index-read <index> <path>`
+
+Reads a file from an index. Returns raw contents.
+
+### `./ee index-read <index> --search "<query>" [--field <name> --value <val>] [--after <sec> --before <sec>] [--top N]`
+
+Full-text search across all JSON files in an index (BM25 ranking).
+Returns `[{file, path, score, data}]`.
+
+### `./ee index-read <index> --dump [--raw] [--stats] [--field <name> --value <val>] [--after <sec> --before <sec>] [--top N]`
+
+Returns all entries from the index. Can be combined with field and time filters.
+
+- `--raw` strips the `{file, path, score, data}` wrapper and outputs flat data.
+- `--stats` outputs aggregate statistics (field distributions, numeric min/max/avg/median).
+
+### Cross-index queries
+
+```
+./ee index-read all --dump [--raw] [--stats]
+./ee index-read safety,productivity --search "fall protection"
+```
+
+Query multiple indices at once. Results are tagged with an `index` field and
+re-sorted by score across indices.
+
+### `./ee index-write <index> <path>`
+
+Reads stdin and writes to a file in the index. Returns `{ok, path, bytesWritten}`.
+
+### `./ee script-render <slug>`
+
+Reads a tutorial script from `data/tutorials/videos/<slug>.json` and renders it
+into an MP4 using ffmpeg. Returns `{"type": "video", "path": "data/tmp/<slug>.mp4"}`.
+
+### `./ee script-verify <slug>`
+
+Extracts one frame per step from the rendered MP4. Read each frame to confirm
+the video matches the script. **Always run this after rendering.**
+
+## Behavioral Index
+
+The `behavioral` index contains heuristic expertise scores (0-100) per video,
+derived from the construction timeline. Higher = more expert-like.
+
+| Score               | Meaning                                                      |
+| ------------------- | ------------------------------------------------------------ |
+| `hesitationScore`   | Fewer delays, reversals, excessive tool switching            |
+| `coordinationScore` | Better timing between workers (quick handoffs, less waiting) |
+| `attentionScore`    | More check-before-act (inspect/verify before risky tasks)    |
+| `smoothnessScore`   | Steadier execution, fewer micro-stops                        |
+| `overallScore`      | Average of the four dimensions                               |
+
+**To find exemplar videos**: `./ee index-read behavioral --dump --top 5 --raw`
+
+**To find videos with low attention**: `./ee index-read behavioral --dump --raw --field attentionScore --value 0`
+
+**To teach workers what to improve**, combine behavioral scores with construction
+timeline and safety data:
+
+1. Identify weak dimensions from behavioral scores
+2. Use `./ee index-read construction --search "<behavior>"` for timestamped examples
+3. Map scores to actionable guidance:
+   - Attention: "Check before acting — inspect, measure, verify before cutting/drilling/lifting"
+   - Hesitation: "Reduce gaps between tasks, avoid switching tools frequently"
+   - Coordination: "Align handoffs with partners, minimize wait time"
+   - Smoothness: "Work in longer, steadier segments instead of stop-start bursts"
+
+## Schema-Driven Scoring
+
+Each index can declare a `"scoring"` key in its `schema.json` to enable
+domain-aware ranking. When searching or dumping, results are sorted by a blend
+of text relevance and domain score. Examples:
+
+- `safety`: ranked by `severity` (1-10)
+- `productivity`: ranked by `impact` (Low/Medium/High)
+- `behavioral`: ranked by `overallScore` (0-100)
+- `construction`: no scoring (text-only ranking)
+
+## Workflow
+
+1. **Read the schema** before writing to any index: `./ee index-read <index> schema.json`
+2. **Search indices** to find relevant moments: `./ee index-read <index> --search "<query>"`
+3. **Extract a clip** to show the user and work with: `./ee video-clip data/videos/<file> --start <sec> --end <sec>`
+   This saves the clip as an MP4 and displays it in the frontend.
+4. **Analyze the clip** with Gemini: `./ee video-analyze data/tmp/clips/<clip>.mp4 "<prompt>"`
+   Pass the clip file from step 3 instead of the full video.
+5. **Extract frames** to visually confirm: `./ee video-frame data/videos/<file> <seconds>`
+6. **Update index data** if something is wrong: read → modify → write back via `index-write`
+
+## Verifying Bounding Boxes
+
+To verify that a bounding box is accurate, use `video-frame` to render it onto
+a still frame, then send that annotated frame back to Gemini with `video-analyze`:
+
+1. Extract the frame with the box drawn on it:
+   `./ee video-frame data/videos/<file> <seconds> --region x,y,w,h`
+2. Read the resulting JPEG to check it visually yourself.
+3. To have Gemini confirm, send the annotated frame (or a short clip around that
+   timestamp) back through `video-analyze` and ask whether the box correctly
+   highlights the described activity or hazard.
+
+This lets you close the loop — the agent generates a bounding box, renders it
+onto the video frame, and then verifies it actually highlights the right thing.
+
+## Self-Correction
+
+Don't blindly trust index data. When you read an entry that seems off, verify it:
+
+1. Pull the frame at that timestamp with `video-frame`.
+2. Look at it — does it match the description?
+3. If it has a bounding box, render it with `--region` and check it highlights
+   the right thing.
+4. If something is wrong, fix it: read the file, correct the entry, write it back.
+
+The index is a living document. If you find errors while answering a question,
+fix them on the spot. Don't just report the error — correct it so the next
+query gets better data.

@@ -4,8 +4,8 @@
  * Team data sync via a secret GitHub Gist.
  *
  * Usage:
- *   bun upload   — Push local data/indices to the team
- *   bun sync     — Pull the latest data/indices from the team
+ *   bun upload   — Push local data/ to the team
+ *   bun sync     — Pull the latest data/ from the team
  *
  * On first `bun upload`, a secret gist is created and its ID is saved to .gist-id.
  * Share the .gist-id file with your team (it's gitignored).
@@ -15,13 +15,12 @@
  */
 
 import { $, Glob } from "bun";
-import { existsSync, mkdirSync, readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 
 const ROOT = join(import.meta.dir, "..");
 const DATA_DIR = join(ROOT, "data");
-const INDICES_DIR = join(DATA_DIR, "indices");
 const GIST_ID_FILE = join(ROOT, ".gist-id");
 const ARCHIVE = "ee-data.tar.gz";
 
@@ -36,14 +35,14 @@ async function computeHash(): Promise<string> {
   const glob = new Glob("**/*");
   const files: string[] = [];
 
-  for await (const file of glob.scan({ cwd: INDICES_DIR, onlyFiles: true })) {
+  for await (const file of glob.scan({ cwd: DATA_DIR, onlyFiles: true })) {
     files.push(file);
   }
 
   files.sort();
 
   for (const file of files) {
-    const content = await Bun.file(join(INDICES_DIR, file)).arrayBuffer();
+    const content = await Bun.file(join(DATA_DIR, file)).arrayBuffer();
     hash.update(file);
     hash.update(new Uint8Array(content));
   }
@@ -69,9 +68,9 @@ async function getRemoteMeta(gistId: string): Promise<SyncMeta | null> {
 }
 
 async function upload() {
-  if (!existsSync(INDICES_DIR)) {
+  if (!existsSync(DATA_DIR)) {
     console.error(
-      "Error: No data/indices directory found. Run 'bun ee' to create indices first.",
+      "Error: No data/ directory found. Run 'bun ee' to create data first.",
     );
     process.exit(1);
   }
@@ -81,8 +80,8 @@ async function upload() {
   const timestamp = new Date().toISOString();
   const meta: SyncMeta = { hash: localHash, user, timestamp };
 
-  // Create tarball
-  await $`tar -czf /tmp/${ARCHIVE} -C ${DATA_DIR} indices`;
+  // Create tarball of entire data/ directory
+  await $`tar -czf /tmp/${ARCHIVE} -C ${ROOT} data`;
 
   // Base64 encode it so it can live in a gist (gists are text-only)
   await $`base64 -i /tmp/${ARCHIVE} -o /tmp/ee-data.b64`;
@@ -105,10 +104,10 @@ async function upload() {
       );
     }
 
-    console.log(`Packing index data (hash: ${localHash})...`);
+    console.log(`Packing data (hash: ${localHash})...`);
     await $`gh gist edit ${gistId} -a /tmp/sync-meta.json -a /tmp/ee-data.b64`;
   } else {
-    console.log(`Packing index data (hash: ${localHash})...`);
+    console.log(`Packing data (hash: ${localHash})...`);
     // Create a new secret gist
     const result =
       await $`gh gist create /tmp/sync-meta.json /tmp/ee-data.b64 -d "experience-engine data sync"`.text();
@@ -144,7 +143,7 @@ async function sync() {
   }
 
   // Check for local changes / conflicts
-  if (existsSync(INDICES_DIR)) {
+  if (existsSync(DATA_DIR)) {
     const localHash = await computeHash();
     if (localHash === meta.hash) {
       console.log("Already up to date.");
@@ -155,19 +154,18 @@ async function sync() {
     );
     console.warn(`  Remote was uploaded by ${meta.user} at ${meta.timestamp}`);
     console.warn(
-      "  Your local data/indices will be overwritten in 3 seconds. Press Ctrl+C to abort.",
+      "  Your local data/ will be overwritten in 3 seconds. Press Ctrl+C to abort.",
     );
     await Bun.sleep(3000);
   }
 
   // Download and decode
   console.log(`Downloading data from ${meta.user} (${meta.timestamp})...`);
-  mkdirSync(DATA_DIR, { recursive: true });
 
   await $`gh gist view ${gistId} -f ee-data.b64 > /tmp/ee-data.b64`;
   await $`base64 -d -i /tmp/ee-data.b64 -o /tmp/${ARCHIVE}`;
-  await $`rm -rf ${INDICES_DIR}`;
-  await $`tar -xzf /tmp/${ARCHIVE} -C ${DATA_DIR}`;
+  await $`rm -rf ${DATA_DIR}`;
+  await $`tar -xzf /tmp/${ARCHIVE} -C ${ROOT}`;
 
   console.log(
     `\x1b[32m✓\x1b[0m Synced! Data from ${meta.user} (hash: ${meta.hash})`,
@@ -184,7 +182,7 @@ if (command === "upload") {
   await sync();
 } else {
   console.log("Usage:");
-  console.log("  bun upload  — Push local index data for your team");
-  console.log("  bun sync    — Pull latest index data from your team");
+  console.log("  bun upload  — Push local data/ for your team");
+  console.log("  bun sync    — Pull latest data/ from your team");
   process.exit(1);
 }

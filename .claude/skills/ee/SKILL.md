@@ -243,6 +243,144 @@ construction timeline data:
 3. Optionally extract the video clip: `./ee video-clip data/videos/<file> --start <startSec> --end <endSec>`
 4. Present the clip alongside the reasoning
 
+---
+
+## Generating the Behavioral Index
+
+When the user asks you to **run behavioral analysis**, **generate the behavioral index**,
+or **analyze worker behaviour** across videos — you do this work directly. No script,
+no separate pipeline. You read the timelines, reason over them, and write the output.
+
+### Step 1 — Read the shared task-type vocabulary
+
+```
+Read data/index/behavioral/task-vocab.json
+```
+
+If the file doesn't exist yet, start with this seed vocab:
+```json
+{
+  "carry": "Transport, move, retrieve, or hand off materials or tools",
+  "check": "Inspect, verify, measure, or align something before acting",
+  "communicate": "Verbal or gestural communication between workers",
+  "idle": "Pause, wait, or stand without active task engagement",
+  "install": "Join, press, fit, insert, or permanently fix something into position",
+  "navigate": "Walk, reposition, or move through the work site",
+  "organize": "Sort, store, clean up, or arrange materials and tools",
+  "risky": "Perform a high-risk precision action: cut, drill, lift, press, strike"
+}
+```
+
+### Step 2 — Find all timeline files
+
+```
+ls data/.ee/indices/construction/timelines/
+```
+
+Each file is `<hash>.timeline.json`.
+
+### Step 3 — For each timeline file, generate a behavioral entry
+
+Read the timeline:
+```
+Read data/.ee/indices/construction/timelines/<hash>.timeline.json
+```
+
+Then for each segment in `timeline.segments`, reason through four stages:
+
+**A. Task type sequence**
+Break the segment's `activity` description into an ordered list of task-type labels
+from the vocab. Use existing types where they fit. Only add new types if genuinely
+needed — coin new types sparingly and add them to `task-vocab.json` when you do.
+
+Example: `"Retrieving ProPress tool from gang box"` → `["navigate", "carry"]`
+Example: `"Aligning copper pipe manifold before pressing"` → `["check", "carry", "check", "install"]`
+
+**B. Implicit intent detection**
+Scan the task type sequence for sub-sequences that genuinely reveal one of:
+
+- **hesitation** — uncertainty/rework: `carry→check→carry`, `install→check→install`,
+  repeated retrieval of the same item, second-guessing before committing
+- **coordination** — hand-offs/waiting: `carry→idle→install` across workers,
+  `communicate→carry→install`, waiting gaps during multi-worker segments
+- **attention** — deliberate verification: `check→risky`, `check→install`,
+  inspection before a precision or dangerous action
+- **smoothness** — timing disruptions: segments under 5 s (micro-stops),
+  high duration variance within a sequence, erratic start-stop pacing
+
+Leave `implicitIntents: []` if no genuine signal is present. Do NOT force-fit.
+
+**C. Features**
+For each detected intent instance, compute named numeric features. Examples:
+- hesitation: `toolSwitchCount`, `reworkCount`, `pauseBeforeResumeSec`
+- coordination: `handoffGapSec`, `waitTimeSec`, `communicationCount`
+- attention: `verificationCount`, `checkToActRatioSec`, `missedCheckCount`
+- smoothness: `microStopCount`, `shortSegmentCount`, `durationVarianceSec`
+
+**D. Score + reasoning**
+Score each instance 0–100 (100 = expert, fluent; 0 = very poor). Write one or two
+plain-English sentences explaining what happened and what it implies about skill.
+
+### Step 4 — Build and write the output JSON
+
+Derive the filename from the video name (strip extension, add `.json`):
+
+```
+echo '<json>' | ./ee index-write behavioral entries/<videoName>.json
+```
+
+Output format:
+```json
+{
+  "videoId": "<hash>",
+  "videoName": "<source.name from timeline>",
+  "generatedAt": "<ISO timestamp>",
+  "segments": [
+    {
+      "segmentIndex": 0,
+      "startSec": 0,
+      "endSec": 45,
+      "activity": "...",
+      "taskTypeSequence": ["navigate", "carry"],
+      "implicitIntents": []
+    },
+    {
+      "segmentIndex": 3,
+      "startSec": 135,
+      "endSec": 185,
+      "activity": "...",
+      "taskTypeSequence": ["carry", "check", "carry", "install"],
+      "implicitIntents": [
+        {
+          "category": "hesitation",
+          "taskSet": ["carry", "check", "carry"],
+          "startSec": 140,
+          "endSec": 168,
+          "features": { "reworkCount": 1, "pauseBeforeResumeSec": 12 },
+          "score": 55,
+          "reasoning": "Worker retrieved the fitting, paused to re-inspect alignment, then retrieved it again — suggests uncertainty about which component to use before committing to the press."
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Step 5 — Update the task vocab
+
+After processing all videos, write the (possibly extended) vocab back:
+```
+Write data/index/behavioral/task-vocab.json
+```
+
+### Tips
+
+- Process videos one at a time, keeping the vocab updated between each.
+- You can do a subset: "analyze the masonry videos only" is valid.
+- To re-analyze a single video, just overwrite that entry file.
+
+---
+
 ## Schema-Driven Scoring
 
 Each index can declare a `"scoring"` key in its `schema.json` to enable

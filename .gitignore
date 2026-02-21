@@ -19,5 +19,8 @@ Thumbs.db
 # Logs
 *.log
 
+# Sync
+.gist-id
+
 # TypeScript
 *.tsbuildinfo

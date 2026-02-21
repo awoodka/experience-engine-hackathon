@@ -17,9 +17,10 @@ import {
   ArrowUp,
   CheckCircle2,
   ChevronDown,
+  Film,
   HardHat,
   Loader2,
-  SquarePen,
+  Square,
   XCircle,
 } from "lucide-react";
 import { Fragment, useRef, useEffect, useState, useCallback } from "react";
@@ -27,20 +28,24 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 const SUGGESTIONS = [
   {
-    label: "Safety violations",
-    prompt: "Show safety violations or risky behaviors across all footage",
+    label: "Best mason habits",
+    prompt:
+      "What does the best mason on this site do differently? Show me the micro-behaviors that set them apart.",
   },
   {
-    label: "Expert techniques",
-    prompt: "Find expert-level techniques and high-skill worker behaviors",
+    label: "Body positioning",
+    prompt:
+      "Find moments where workers use expert body positioning or ergonomic techniques that reduce fatigue and injury risk.",
   },
   {
-    label: "Tool usage",
-    prompt: "Analyze tool usage patterns and efficiency across the job site",
+    label: "Material staging",
+    prompt:
+      "How do top performers stage their materials before starting a task? Compare efficient vs inefficient setups.",
   },
   {
-    label: "Communication",
-    prompt: "Identify team communication events and coordination patterns",
+    label: "Trainable insights",
+    prompt:
+      "What subconscious expert habits from this footage could be turned into training for new workers?",
   },
 ];
 
@@ -184,10 +189,45 @@ function ReasoningPart({ part }: { part: ReasoningUIPart }) {
   );
 }
 
+/** Try to parse a video output from a tool part's output. */
+function parseVideoOutput(
+  output: unknown,
+): { type: string; path: string } | null {
+  try {
+    const text = typeof output === "string" ? output : JSON.stringify(output);
+    const parsed = JSON.parse(text);
+    if (parsed?.type === "video" && typeof parsed.path === "string") {
+      return parsed;
+    }
+  } catch {
+    // not video output
+  }
+  return null;
+}
+
+function VideoPlayer({ path }: { path: string }) {
+  // Rewrite data/ paths to /data/ for the Vite middleware
+  const src = path.startsWith("data/") ? `/${path}` : path;
+
+  return (
+    <div className="animate-fade-in mb-6">
+      <div className="overflow-hidden rounded-2xl border border-[var(--color-ee-border)] bg-black">
+        <div className="flex items-center gap-2 border-b border-[var(--color-ee-border)] bg-[var(--color-ee-surface)] px-4 py-2">
+          <Film className="h-4 w-4 text-[var(--color-ee-accent)]" />
+          <span className="text-[13px] font-medium text-[var(--color-ee-text-secondary)]">
+            Generated Video
+          </span>
+        </div>
+        <video controls className="w-full" src={src} preload="metadata" />
+      </div>
+    </div>
+  );
+}
+
 export default function Chat() {
-  const { messages, sendMessage, setMessages, status } = useChat<ChatMessage>({
+  const { messages, sendMessage, status, stop } = useChat<ChatMessage>({
     transport: new DefaultChatTransport({
-      api: "http://localhost:7892/api/chat",
+      api: "/api/chat",
     }),
   });
   const [input, setInput] = useState("");
@@ -199,7 +239,7 @@ export default function Chat() {
     useStickToBottom();
 
   const isStreaming = status === "streaming";
-  const isReady = status === "ready";
+  const isLoading = isStreaming || status === "submitted";
   const isEmpty = messages.length === 0;
 
   useEffect(() => {
@@ -221,11 +261,11 @@ export default function Chat() {
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || !isReady) return;
+      if (!input.trim() || isLoading) return;
       sendMessage({ text: input });
       setInput("");
     },
-    [input, isReady, sendMessage],
+    [input, isLoading, sendMessage],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -236,14 +276,8 @@ export default function Chat() {
   };
 
   const handleSuggestion = (prompt: string) => {
-    if (!isReady) return;
+    if (isLoading) return;
     sendMessage({ text: prompt });
-  };
-
-  const handleNewChat = () => {
-    setMessages([]);
-    setInput("");
-    textareaRef.current?.focus();
   };
 
   return (
@@ -251,27 +285,6 @@ export default function Chat() {
       ref={containerRef}
       className="flex h-screen flex-col bg-[var(--color-ee-bg)] opacity-0 transition-opacity duration-500"
     >
-      {/* Top bar */}
-      <header className="flex shrink-0 items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-ee-accent)]">
-            <HardHat className="h-4 w-4 text-black" />
-          </div>
-          <span className="text-base font-semibold tracking-tight text-[var(--color-ee-text)]">
-            Experience Engine
-          </span>
-        </div>
-        {!isEmpty && (
-          <button
-            onClick={handleNewChat}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-ee-text-muted)] transition-colors hover:bg-[var(--color-ee-surface)] hover:text-[var(--color-ee-text)]"
-            title="New chat"
-          >
-            <SquarePen className="h-4 w-4" />
-          </button>
-        )}
-      </header>
-
       {/* Messages area */}
       <div ref={scrollRef} className="relative flex-1 overflow-y-auto">
         {isEmpty ? (
@@ -280,8 +293,8 @@ export default function Chat() {
               className="animate-fade-in-up"
               style={{ animationDelay: "100ms" }}
             >
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
-                <HardHat className="h-7 w-7 text-white" />
+              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center text-amber-500">
+                <HardHat className="h-10 w-10" />
               </div>
             </div>
             <h1
@@ -341,13 +354,7 @@ export default function Chat() {
                       }
 
                       return (
-                        <div
-                          key={key}
-                          className="animate-fade-in mb-6 flex gap-3"
-                        >
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600">
-                            <HardHat className="h-3.5 w-3.5 text-white" />
-                          </div>
+                        <div key={key} className="animate-fade-in mb-6">
                           <div className="ee-prose min-w-0 flex-1 text-[15px]">
                             <Streamdown
                               isAnimating={
@@ -368,7 +375,15 @@ export default function Chat() {
                     }
 
                     if (isToolUIPart(part)) {
-                      return <ToolPart key={key} part={part} />;
+                      const videoOutput = parseVideoOutput(part.output);
+                      return (
+                        <Fragment key={key}>
+                          <ToolPart part={part} />
+                          {videoOutput && (
+                            <VideoPlayer path={videoOutput.path} />
+                          )}
+                        </Fragment>
+                      );
                     }
 
                     return null;
@@ -376,12 +391,9 @@ export default function Chat() {
                 </Fragment>
               );
             })}
-            {isStreaming &&
+            {isLoading &&
               messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="animate-fade-in mb-6 flex gap-3">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600">
-                    <HardHat className="h-3.5 w-3.5 text-white" />
-                  </div>
+                <div className="animate-fade-in mb-6">
                   <div className="flex items-center gap-1.5 pt-2">
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-ee-text-muted)] [animation-delay:0ms]" />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-ee-text-muted)] [animation-delay:150ms]" />
@@ -419,34 +431,36 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Experience Engine..."
+              placeholder="Ask me anything..."
               rows={1}
               className="w-full resize-none bg-transparent px-6 pt-4 pb-14 text-[15px] text-[var(--color-ee-text)] placeholder:text-[var(--color-ee-text-faint)] focus:outline-none"
               style={{ maxHeight: "200px" }}
             />
             <div className="absolute right-3 bottom-3 flex items-center gap-2">
-              <button
-                type="submit"
-                disabled={!isReady || !input.trim()}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
-                  input.trim() && isReady
-                    ? "bg-white text-[var(--color-ee-bg)] hover:scale-105 hover:bg-gray-200 active:scale-95"
-                    : "cursor-not-allowed bg-[var(--color-ee-text-faint)] text-[var(--color-ee-surface)]",
-                )}
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={() => stop()}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[var(--color-ee-bg)] transition-all duration-200 hover:scale-105 hover:bg-gray-200 active:scale-95"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",
+                    input.trim()
+                      ? "bg-white text-[var(--color-ee-bg)] hover:scale-105 hover:bg-gray-200 active:scale-95"
+                      : "cursor-not-allowed bg-[var(--color-ee-text-faint)] text-[var(--color-ee-surface)]",
+                  )}
+                >
                   <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                )}
-              </button>
+                </button>
+              )}
             </div>
           </div>
-          <p className="mt-2.5 text-center text-[11px] text-[var(--color-ee-text-faint)]">
-            Experience Engine analyzes construction video for expert behavioral
-            patterns.
-          </p>
         </form>
       </div>
     </div>

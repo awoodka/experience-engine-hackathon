@@ -1,17 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-  </defs>
-  <!-- Outer ring (lens/viewfinder) -->
-  <circle cx="64" cy="64" r="56" stroke="url(#g)" stroke-width="8" fill="none"/>
-  <!-- Crosshair lines -->
-  <line x1="64" y1="4" x2="64" y2="24" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <line x1="64" y1="104" x2="64" y2="124" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <line x1="4" y1="64" x2="24" y2="64" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <line x1="104" y1="64" x2="124" y2="64" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
-  <!-- Inner eye/play shape -->
-  <circle cx="64" cy="64" r="20" fill="url(#g)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/>
+  <path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5"/>
+  <path d="M4 15v-3a6 6 0 0 1 6-6h0"/>
+  <path d="M14 6h0a6 6 0 0 1 6 6v3"/>
 </svg>

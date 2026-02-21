@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.30",
+    "@napi-rs/canvas": "^0.1.94",
     "@t3-oss/env-core": "^0.13.10",
     "ai": "^6.0.97",
+    "minisearch": "^7.2.0",
     "zod": "^3.25.76"
   }
 }

@@ -149,18 +149,19 @@ that segment — nothing is force-fit.
 
 The four intent categories:
 
-| Category        | What it captures                                                  |
-| --------------- | ----------------------------------------------------------------- |
-| `hesitation`    | Uncertainty / rework — carry→check→carry, repeated same task     |
-| `coordination`  | Hand-offs, waiting on partner, sync events                        |
-| `attention`     | Deliberate check-before-act (verify→install, inspect→risky)       |
-| `smoothness`    | Timing disruptions — micro-stops (<5 s), erratic pacing           |
+| Category       | What it captures                                             |
+| -------------- | ------------------------------------------------------------ |
+| `hesitation`   | Uncertainty / rework — carry→check→carry, repeated same task |
+| `coordination` | Hand-offs, waiting on partner, sync events                   |
+| `attention`    | Deliberate check-before-act (verify→install, inspect→risky)  |
+| `smoothness`   | Timing disruptions — micro-stops (<5 s), erratic pacing      |
 
 The shared task-type vocabulary lives at `data/index/behavioral/task-vocab.json`.
 
 ### Querying the behavioral index
 
 **Search for a behaviour pattern:**
+
 ```
 ./ee index-read behavioral --search "hesitation"
 ./ee index-read behavioral --search "carry check carry"
@@ -168,11 +169,13 @@ The shared task-type vocabulary lives at `data/index/behavioral/task-vocab.json`
 ```
 
 **Read a full video entry:**
+
 ```
 ./ee index-read behavioral entries/05_production_mp.json
 ```
 
 **List all behavioral entry files:**
+
 ```
 ./ee index-list
 ```
@@ -190,12 +193,14 @@ smoothness — follow this pattern:
 6. **Compare scores** across videos or segments to rank performance
 
 **Example flow** — "Which workers showed the most hesitation?":
+
 1. `./ee index-read behavioral --search "hesitation"`
 2. Read top entries, collect all `implicitIntents` where `category === "hesitation"`
 3. Sort by `score` ascending (low score = more hesitation)
 4. Cite `reasoning` and timestamps for each instance
 
 **Example flow** — "Show me good check-before-act behaviour":
+
 1. `./ee index-read behavioral --search "attention verification check"`
 2. Find instances where `category === "attention"` and `score >= 80`
 3. Note `startSec`/`endSec`, optionally extract a clip for the user

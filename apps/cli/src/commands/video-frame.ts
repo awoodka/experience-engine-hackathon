@@ -193,7 +193,7 @@ async function extractFrame(
   console.log(
     JSON.stringify(
       {
-        type: "image",
+        type: "frame",
         path: `data/tmp/frames/${outputName}`,
         seconds,
         region: region ?? undefined,

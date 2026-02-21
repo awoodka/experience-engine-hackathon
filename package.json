@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "check": "prettier --write . && eslint --fix . && bun scripts/validate-indices.ts",
+    "check": "prettier --write . && eslint --fix . && bun scripts/validate-indices.ts && bun scripts/validate-tutorials.ts",
     "agent": "bun scripts/agent.ts",
     "ee": "bun --cwd apps/cli src/index.ts",
     "sync": "bun scripts/sync.ts sync",

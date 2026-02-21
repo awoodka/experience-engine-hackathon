@@ -68,22 +68,26 @@ app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
 });
 
-const tutorialsDir = resolve(projectRoot, "data/tutorials/videos");
+const tutorialsDir = resolve(projectRoot, "data/tutorials");
 
 app.get("/api/tutorials", async (c) => {
   try {
-    const files = await readdir(tutorialsDir);
-    const metaFiles = files.filter((f) => f.endsWith(".meta.json"));
-    const metas = await Promise.all(
-      metaFiles.map(async (f) => {
-        const raw = await readFile(resolve(tutorialsDir, f), "utf8");
-        return JSON.parse(raw) as {
-          id: string;
-          generatedAt: string;
-          [key: string]: unknown;
-        };
-      }),
-    );
+    const entries = await readdir(tutorialsDir, { withFileTypes: true });
+    const dirs = entries.filter((e) => e.isDirectory());
+    const metas: Array<{
+      id: string;
+      generatedAt: string;
+      [key: string]: unknown;
+    }> = [];
+    for (const dir of dirs) {
+      const metaPath = resolve(tutorialsDir, dir.name, "meta.json");
+      try {
+        const raw = await readFile(metaPath, "utf8");
+        metas.push(JSON.parse(raw));
+      } catch {
+        // No meta.json yet — skip
+      }
+    }
     metas.sort(
       (a, b) =>
         new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime(),

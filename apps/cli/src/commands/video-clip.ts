@@ -127,7 +127,7 @@ export default async function videoClip(args: string[]): Promise<void> {
   console.log(
     JSON.stringify(
       {
-        type: "video",
+        type: "clip",
         path: relativePath,
         startSec,
         endSec: endSec ?? undefined,

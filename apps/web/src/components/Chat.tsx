@@ -439,7 +439,10 @@ export default function Chat() {
 
       {/* Input area */}
       <div className={cn("shrink-0 px-4 pb-4", isEmpty && "-mt-16")}>
-        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="mx-auto max-w-3xl"
+        >
           <div
             className={cn(
               "relative overflow-hidden rounded-3xl bg-[var(--color-ee-surface)] shadow-xl shadow-black/20",
@@ -467,7 +470,8 @@ export default function Chat() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   disabled={!input.trim()}
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200",

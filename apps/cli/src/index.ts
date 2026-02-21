@@ -12,9 +12,8 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   "index-read": (await import("./commands/index-read.js")).default,
   "index-write": (await import("./commands/index-write.js")).default,
   "index-create": (await import("./commands/index-create.js")).default,
-  "script-render": (await import("./commands/script-render.js")).default,
-  "script-verify": (await import("./commands/script-verify.js")).default,
-  tutorial: (await import("./commands/tutorial.js")).default,
+  "tutorial-render": (await import("./commands/tutorial-render.js")).default,
+  present: (await import("./commands/present.js")).default,
 };
 
 if (!command || command === "--help" || command === "-h") {
@@ -47,10 +46,11 @@ if (!command || command === "--help" || command === "-h") {
       --raw    Strip wrapper, output flat data array
       --stats  Aggregate statistics (field distributions, numeric summaries)
 
+  Presentation:
+    ee present <path>                                 Show an image or video to the user
+
   Tutorial Tools:
-    ee tutorial render <id> [--model <gemini-model>]  Render tutorial script to MP4
-    ee script-render <slug>                           Render tutorial to MP4
-    ee script-verify <slug>                           Extract frames for review
+    ee tutorial-render <slug>                         Render tutorial to MP4
   `);
   process.exit(0);
 }

@@ -10,7 +10,7 @@ This repository is a Bun + Turborepo monorepo.
 - `scripts/sync.ts`: team data sync/upload flow via secret GitHub Gist.
 - `data/videos/`: source video files.
 - `data/index/`: behavioral indices (queryable by `./ee` CLI). Each index has `entries/<video>.json`.
-- `data/tutorials/`: agent-generated video tutorial scripts.
+- `data/tutorials/`: per-tutorial directories, each containing `config.json`, `video.mp4`, `thumb.jpg`, `meta.json`.
 - `data/tmp/`: temporary files (extracted frames, etc.).
 - `packages/`: reserved for shared packages (currently empty).
 

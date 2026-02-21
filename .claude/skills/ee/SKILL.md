@@ -18,7 +18,10 @@ data/
     <name>/
       schema.json                     # Entry shape (JSON Schema) — read before writing
       entries/<video>.json            # One file per source video, array of timestamped items
-  tutorials/videos/<slug>.json        # Agent-generated video tutorial scripts
+  tutorials/<slug>/config.json         # Agent-generated video tutorial scripts
+  tutorials/<slug>/video.mp4           # Rendered tutorial video
+  tutorials/<slug>/thumb.jpg           # Thumbnail
+  tutorials/<slug>/meta.json           # Metadata (includes configHash)
   videos/                             # Source video files
   tmp/                                # Temporary files (frames, clips)
 ```
@@ -36,8 +39,8 @@ Lists video files in `data/videos/`. Returns `[{name, path, sizeBytes}]`.
 ### `./ee video-clip <file> --start <sec> [--end <sec>] [--region x,y,w,h]`
 
 Extracts a clip from a video and saves it as an MP4 in `data/tmp/clips/`.
-Returns `{"type": "video", "path": "data/tmp/clips/..."}`. The frontend renders
-this as an inline video player so the user can watch the clip immediately.
+Returns `{"type": "clip", "path": "data/tmp/clips/..."}`. The clip is **not**
+shown to the user automatically — use `./ee present <path>` when you're ready.
 
 - The MP4 file persists, so you can pass it to `video-analyze` or other commands.
 - Optional `--region` draws a red bounding box (normalized 0–1 coordinates).
@@ -55,7 +58,8 @@ Sends a video (or clip) to Gemini with your prompt.
 
 Extracts a JPEG frame at the given timestamp. Optionally draws a red bounding
 box when `--region` is provided (normalized 0–1 coordinates).
-Returns `{path, seconds, region?}`. Use the Read tool to view the image.
+Returns `{"type": "frame", "path": "...", seconds, region?}`. The frame is
+**not** shown to the user automatically — use `./ee present <path>` when ready.
 
 **Entry mode**: Pull video, timestamp, and region from an index entry:
 
@@ -101,15 +105,24 @@ re-sorted by score across indices.
 
 Reads stdin and writes to a file in the index. Returns `{ok, path, bytesWritten}`.
 
-### `./ee script-render <slug>`
+### `./ee present <path>`
 
-Reads a tutorial script from `data/tutorials/videos/<slug>.json` and renders it
-into an MP4 using ffmpeg. Returns `{"type": "video", "path": "data/tmp/<slug>.mp4"}`.
+Shows an image or video to the user in the chat. Call this **only when you are
+ready to present** a result — not during intermediate exploration. The command
+detects the media type from the file extension and emits the format the frontend
+renders inline.
 
-### `./ee script-verify <slug>`
+```
+./ee present data/tmp/frames/abc_62.0.jpg    # shows image
+./ee present data/tmp/clips/clip_xyz.mp4     # shows video
+./ee present data/tmp/my_tutorial.mp4        # shows rendered tutorial
+```
 
-Extracts one frame per step from the rendered MP4. Read each frame to confirm
-the video matches the script. **Always run this after rendering.**
+### `./ee tutorial-render <slug>`
+
+Reads a tutorial script from `data/tutorials/<slug>/config.json` and renders it
+into an MP4 using ffmpeg. Returns `{"type": "clip", "path": "data/tmp/<slug>.mp4"}`.
+The video is **not** shown automatically — use `./ee present <path>` when ready.
 
 ## Behavioral Index
 
@@ -154,11 +167,13 @@ of text relevance and domain score. Examples:
 
 1. **Read the schema** before writing to any index: `./ee index-read <index> schema.json`
 2. **Search indices** to find relevant moments: `./ee index-read <index> --search "<query>"`
-3. **Extract a clip** to show the user and work with: `./ee video-clip data/videos/<file> --start <sec> --end <sec>`
-   This saves the clip as an MP4 and displays it in the frontend.
-4. **Analyze the clip** with Gemini: `./ee video-analyze data/tmp/clips/<clip>.mp4 "<prompt>"`
-   Pass the clip file from step 3 instead of the full video.
-5. **Extract frames** to visually confirm: `./ee video-frame data/videos/<file> <seconds>`
+3. **Extract clips and frames** for your own analysis — these are silent and won't
+   clutter the user's chat:
+   - `./ee video-clip data/videos/<file> --start <sec> --end <sec>`
+   - `./ee video-frame data/videos/<file> <seconds>`
+4. **Analyze** with Gemini: `./ee video-analyze data/tmp/clips/<clip>.mp4 "<prompt>"`
+5. **Present results** when you're ready: `./ee present <path>`
+   Only show the user the final, curated media — not every intermediate frame.
 6. **Update index data** if something is wrong: read → modify → write back via `index-write`
 
 ## Verifying Bounding Boxes

@@ -1,9 +1,9 @@
 /**
- * script-render command: reads a script JSON and renders it into an MP4 using ffmpeg.
+ * tutorial-render command: reads a script JSON and renders it into an MP4 using ffmpeg.
  *
- * Usage: ee script-render <slug>
+ * Usage: ee tutorial-render <slug>
  *
- * Reads from data/tutorials/videos/<slug>.json
+ * Reads from data/tutorials/<slug>/config.json
  * Outputs to data/tmp/<slug>.mp4
  *
  * Step types:
@@ -15,51 +15,15 @@ import { mkdir, readFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { TUTORIALS_DIR, VIDEOS_DIR, TMP_DIR } from "../paths.js";
-interface Region {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+import type {
+  Step,
+  PlayStep,
+  PauseStep,
+  TutorialScript,
+} from "../lib/tutorial-types.js";
 
 const LINE_HEIGHT = 44;
 const FONT = "Arial";
-
-interface NarrateStep {
-  type: "narrate";
-  text: string;
-}
-
-interface PlayStep {
-  type: "play";
-  video: string;
-  startSec: number;
-  endSec: number;
-  label?: string;
-}
-
-interface PauseStep {
-  type: "pause";
-  video: string;
-  timestampSec: number;
-  description: string;
-  region?: Region;
-  frame?: string;
-}
-
-interface TakeawayStep {
-  type: "takeaway";
-  text: string;
-}
-
-type Step = NarrateStep | PlayStep | PauseStep | TakeawayStep;
-
-interface Script {
-  title: string;
-  type?: string;
-  description?: string;
-  steps: Step[];
-}
 
 /** Escape text for ffmpeg drawtext text= parameter. */
 function esc(text: string): string {
@@ -142,17 +106,17 @@ function bottomTextFilters(
 export default async function scriptRender(args: string[]): Promise<void> {
   const slug = args[0];
   if (!slug) {
-    console.error("Usage: ee script-render <slug>");
+    console.error("Usage: ee tutorial-render <slug>");
     process.exit(1);
   }
 
-  const scriptPath = resolve(TUTORIALS_DIR, `${slug}.json`);
+  const scriptPath = resolve(TUTORIALS_DIR, slug, "config.json");
   if (!existsSync(scriptPath)) {
-    console.error(`Script not found: data/tutorials/videos/${slug}.json`);
+    console.error(`Script not found: data/tutorials/${slug}/config.json`);
     process.exit(1);
   }
 
-  let script: Script;
+  let script: TutorialScript;
   try {
     script = JSON.parse(await readFile(scriptPath, "utf8"));
   } catch {
@@ -183,10 +147,20 @@ export default async function scriptRender(args: string[]): Promise<void> {
 
     switch (step.type) {
       case "narrate":
-        await renderTextCard(segmentPath, step.text, "narrate");
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "narrate",
+          step.durationSec,
+        );
         break;
       case "takeaway":
-        await renderTextCard(segmentPath, step.text, "takeaway");
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "takeaway",
+          step.durationSec,
+        );
         break;
       case "play":
         await renderPlayStep(segmentPath, step);
@@ -246,7 +220,7 @@ export default async function scriptRender(args: string[]): Promise<void> {
   await unlink(segmentDir).catch(() => {});
 
   const relativePath = `data/tmp/${slug}.mp4`;
-  console.log(JSON.stringify({ type: "video", path: relativePath }));
+  console.log(JSON.stringify({ type: "clip", path: relativePath }));
 }
 
 /** Render a text card with centered multi-line text. */
@@ -254,8 +228,10 @@ async function renderTextCard(
   outputPath: string,
   text: string,
   style: "narrate" | "takeaway",
+  overrideDuration?: number,
 ): Promise<void> {
-  const duration = Math.min(5, Math.max(2, Math.ceil(text.length / 20)));
+  const duration =
+    overrideDuration ?? Math.min(5, Math.max(2, Math.ceil(text.length / 20)));
   const bgColor = style === "takeaway" ? "0x1a1a2e" : "0x212121";
   const fontColor = style === "takeaway" ? "0x4fc3f7" : "white";
   const fontSize = style === "takeaway" ? 34 : 30;
@@ -298,7 +274,8 @@ async function renderPlayStep(
     process.exit(1);
   }
 
-  const duration = step.endSec - step.startSec;
+  const duration =
+    step.durationSec ?? Math.max(1, Math.min(step.endSec - step.startSec, 20));
   const vfParts: string[] = [
     "scale=1280:720:force_original_aspect_ratio=decrease",
     "pad=1280:720:-1:-1:color=black",
@@ -355,10 +332,9 @@ async function renderPauseStep(
     process.exit(1);
   }
 
-  const holdDuration = Math.min(
-    6,
-    Math.max(3, Math.ceil(step.description.length / 25)),
-  );
+  const holdDuration =
+    step.durationSec ??
+    Math.min(6, Math.max(3, Math.ceil(step.description.length / 25)));
   const vfParts: string[] = [
     "scale=1280:720:force_original_aspect_ratio=decrease",
     "pad=1280:720:-1:-1:color=black",

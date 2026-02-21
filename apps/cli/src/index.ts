@@ -14,6 +14,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   "index-create": (await import("./commands/index-create.js")).default,
   "script-render": (await import("./commands/script-render.js")).default,
   "script-verify": (await import("./commands/script-verify.js")).default,
+  tutorial: (await import("./commands/tutorial.js")).default,
 };
 
 if (!command || command === "--help" || command === "-h") {
@@ -47,6 +48,7 @@ if (!command || command === "--help" || command === "-h") {
       --stats  Aggregate statistics (field distributions, numeric summaries)
 
   Tutorial Tools:
+    ee tutorial render <id> [--model <gemini-model>]  Render tutorial script to MP4
     ee script-render <slug>                           Render tutorial to MP4
     ee script-verify <slug>                           Extract frames for review
   `);

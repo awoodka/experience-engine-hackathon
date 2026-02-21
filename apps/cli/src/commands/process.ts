@@ -10,6 +10,7 @@ import {
 import { extname, resolve } from "node:path";
 import { Output, generateText, jsonSchema } from "ai";
 import { google } from "@ai-sdk/google";
+import { z } from "zod";
 import { env } from "../env";
 
 const DATA_DIR = resolve(import.meta.dirname, "../../../../data");
@@ -35,11 +36,15 @@ Analyze the video and produce a behavioral timeline that makes expert actions se
 Focus on:
 - concrete actions and sequence of work
 - worker positioning and spatial relationships
-- safety-relevant behavior
-- efficiency and craft-quality signals
+- safety-relevant behavior (assign riskLevel: low/medium/high per segment)
+- efficiency and craft-quality signals (expertiseSignals)
+- inefficiency indicators like wasted motion, rework, idle time, poor sequencing (inefficiencySignals)
+- communication between workers: verbal cues, hand signals, coordination events (communicationEvents)
+- ergonomic observations: body mechanics, posture, lifting technique, repetitive strain risks (ergonomicNotes)
 
 Use timestamp segments that are granular enough to query later (typically 5-45 seconds).
 Prefer concise, objective descriptions over speculation.
+Use empty arrays when a signal type is not observed in a segment.
 `.trim();
 
 type VideoStatus = "pending" | "processing" | "done" | "error";
@@ -69,7 +74,11 @@ interface TimelineSegment {
   materials: string[];
   spatialContext: string;
   safetyNotes: string[];
+  riskLevel: "low" | "medium" | "high";
   expertiseSignals: string[];
+  inefficiencySignals: string[];
+  communicationEvents: string[];
+  ergonomicNotes: string[];
 }
 
 interface TimelineOutput {
@@ -121,6 +130,30 @@ interface IndexManifest {
   videos: ManifestVideo[];
 }
 
+const manifestVideoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  relativePath: z.string(),
+  sizeBytes: z.number(),
+  mtimeMs: z.number(),
+  fileFingerprint: z.string(),
+  timelinePath: z.string(),
+  status: z.enum(["pending", "processing", "done", "error"]),
+  modelId: z.string(),
+  promptHash: z.string(),
+  startedAt: z.string().optional(),
+  processedAt: z.string().optional(),
+  error: z.string().optional(),
+});
+
+const persistedManifestSchema = z.object({
+  version: z.number().optional(),
+  schemaVersion: z.number().optional(),
+  index: z.string().optional(),
+  createdAt: z.string().optional(),
+  videos: z.array(manifestVideoSchema).catch([]),
+});
+
 const TIMELINE_SCHEMA = jsonSchema<TimelineOutput>({
   type: "object",
   additionalProperties: false,
@@ -153,7 +186,11 @@ const TIMELINE_SCHEMA = jsonSchema<TimelineOutput>({
           materials: { type: "array", items: { type: "string" } },
           spatialContext: { type: "string" },
           safetyNotes: { type: "array", items: { type: "string" } },
+          riskLevel: { type: "string", enum: ["low", "medium", "high"] },
           expertiseSignals: { type: "array", items: { type: "string" } },
+          inefficiencySignals: { type: "array", items: { type: "string" } },
+          communicationEvents: { type: "array", items: { type: "string" } },
+          ergonomicNotes: { type: "array", items: { type: "string" } },
         },
         required: [
           "startSec",
@@ -164,7 +201,11 @@ const TIMELINE_SCHEMA = jsonSchema<TimelineOutput>({
           "materials",
           "spatialContext",
           "safetyNotes",
+          "riskLevel",
           "expertiseSignals",
+          "inefficiencySignals",
+          "communicationEvents",
+          "ergonomicNotes",
         ],
       },
     },
@@ -456,19 +497,27 @@ async function loadManifest(
   }
 
   try {
-    const raw = JSON.parse(
-      await readFile(manifestPath, "utf8"),
-    ) as Partial<IndexManifest>;
+    const raw: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
+    const parsed = persistedManifestSchema.safeParse(raw);
+    const persisted = parsed.success
+      ? parsed.data
+      : {
+          version: undefined,
+          schemaVersion: undefined,
+          index: undefined,
+          createdAt: undefined,
+          videos: [],
+        };
     return {
-      version: raw.version ?? 1,
-      schemaVersion: raw.schemaVersion ?? 1,
-      index: raw.index ?? index,
-      createdAt: raw.createdAt ?? now,
+      version: persisted.version ?? 1,
+      schemaVersion: persisted.schemaVersion ?? 1,
+      index: persisted.index ?? index,
+      createdAt: persisted.createdAt ?? now,
       updatedAt: now,
       promptPath,
       promptHash,
       modelId,
-      videos: Array.isArray(raw.videos) ? raw.videos : [],
+      videos: persisted.videos,
     };
   } catch {
     return {

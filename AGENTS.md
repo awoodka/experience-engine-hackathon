@@ -10,8 +10,9 @@ Experience Engine is an AI-powered system that analyzes construction job site vi
 
 ## Monorepo Structure
 
-- **`apps/cli`** — Bun-based CLI tool (`ee` command) for video processing and index querying. Uses Vercel AI SDK.
-- **`apps/web`** — Astro 5 + React 19 web interface with Tailwind CSS 4 and shadcn/ui (New York style, neutral base).
+- **`apps/api`** — Bun + Hono API server (port 7892). Provides the `/api/chat` streaming endpoint backed by Claude Code via Vercel AI SDK.
+- **`apps/cli`** — Bun-based CLI tool (`ee` command) for video processing and index querying. Uses Vercel AI SDK + Google Gemini for video analysis.
+- **`apps/web`** — Astro 5 + React 19 web interface (port 7891) with Tailwind CSS 4 and shadcn/ui (New York style, neutral base).
 - **`packages/`** — Shared packages (currently empty).
 - **`data/`** — Gitignored. Stores video files and behavioral indices at `data/.ee/indices/`.
 
@@ -37,8 +38,9 @@ bun apps/cli/src/index.ts <command>
 # Or from apps/cli:
 bun run dev
 
-# Web app only
-cd apps/web && bunx astro dev
+# Individual apps
+cd apps/web && bunx astro dev    # Web app (port 7891)
+cd apps/api && bun run dev       # API server (port 7892)
 
 # Run a single workspace task
 bunx turbo dev --filter=@experience-engine/web
@@ -47,28 +49,47 @@ bunx turbo build --filter=@experience-engine/cli
 
 ## Architecture
 
+### API (`apps/api`)
+
+Runs on **Bun** with **Hono** framework. Single-file server at `src/index.ts`, port **7892**.
+
+Routes:
+
+- `POST /api/chat` — Streaming chat endpoint. Accepts `{ messages }`, uses `claudeCode("sonnet")` via `ai-sdk-provider-claude-code`, returns streaming UI response.
+- `GET /api/health` — Health check.
+
+CORS allows `http://localhost:7891` (web app) on POST to `/api/*`.
+
 ### CLI (`apps/cli`)
 
 Runs on **Bun** (not Node). Entry point: `src/index.ts` with command dispatch pattern.
 
 Commands:
-- `process` — Build/resume a behavioral index from video files (TODO)
-- `query` — Search an index for behavioral patterns (TODO)
-- `list` — Show all indices in `data/.ee/indices/`
-- `status` — Show processing progress for an index
 
-Data model: Each index has a `manifest.json` tracking video files and their processing status (pending/done/error). Behavioral timelines are generated per-video.
+- `process` — Build/resume a behavioral index from video files. Uses Google Gemini (`@ai-sdk/google`) for structured video analysis. Flags: `--index`, `--prompt`, `--model`, `--force`, `--limit`. Discovers top-level video files in `data/` (mp4, mov, m4v, avi, mkv, webm, mpeg, mpg). Outputs per-video timeline JSON with segments containing activity, workers, tools, materials, spatial context, safety notes, risk level, expertise/inefficiency signals, communication events, and ergonomic notes.
+- `query` — Keyword search across timeline segments. Flags: `--index`, `--limit`. Scores segments by token matching across all fields, sorted by relevance then timestamp.
+- `list` — Show all indices in `data/.ee/indices/` with processing progress.
+- `status` — Show processing progress for an index.
+
+Data model: Each index has a `manifest.json` tracking video files and their processing status (pending/done/error). Behavioral timelines are stored as `timelines/<sha1>.timeline.json`.
 
 ### Web (`apps/web`)
 
-Astro static site with React islands. Path alias `@/*` maps to `src/*`.
+Astro static site with React islands. Path alias `@/*` maps to `src/*`. Dev server on port **7891**.
 
 Key layers:
+
 - `src/pages/` — Astro pages (file-based routing)
 - `src/layouts/Layout.astro` — Base HTML wrapper
+- `src/components/Chat.tsx` — Main chat UI using `useChat` from `@ai-sdk/react`, pointed at the API server. Renders streaming markdown via `streamdown`.
 - `src/components/ui/` — shadcn/ui components
 - `src/lib/utils.ts` — `cn()` helper (clsx + tailwind-merge)
-- `src/styles/global.css` — Theme variables (OKLCH color space, dark mode support)
+- `src/styles/global.css` — Theme variables (OKLCH color space, dark mode support, custom `--color-ee-*` CSS variables)
+
+## Agent Rules
+
+- **Always run `bun check` after writing code.** Never skip this step — run it after every code change before considering the task done.
+- **Never disable the chat input field.** The input should always remain enabled, even during message streaming/sending.
 
 ## Code Style
 
@@ -81,6 +102,10 @@ Key layers:
 ## Key Dependencies
 
 - **Turbo** for monorepo task orchestration (Bun workspaces)
-- **Vercel AI SDK** (`ai` package) in CLI for LLM integration
+- **Hono** for API server
+- **Vercel AI SDK** (`ai`, `@ai-sdk/react`) for LLM integration and chat UI
+- **ai-sdk-provider-claude-code** for Claude Code model access in the API
+- **@ai-sdk/google** for Gemini video analysis in CLI
+- **Streamdown** (`streamdown`, `@streamdown/code`) for streaming markdown rendering
 - **Radix UI** primitives via shadcn/ui in web app
 - **Lucide React** for icons

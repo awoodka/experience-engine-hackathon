@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
+import { z } from "zod";
 
 const INDICES_DIR = resolve(
   import.meta.dirname,
@@ -26,13 +27,11 @@ interface TimelineSegment {
   materials?: string[];
   spatialContext?: string;
   safetyNotes?: string[];
+  riskLevel?: "low" | "medium" | "high";
   expertiseSignals?: string[];
-}
-
-interface TimelineDocument {
-  timeline?: {
-    segments?: TimelineSegment[];
-  };
+  inefficiencySignals?: string[];
+  communicationEvents?: string[];
+  ergonomicNotes?: string[];
 }
 
 interface SearchHit {
@@ -47,6 +46,43 @@ interface SearchHit {
   materials: string[];
   spatialContext: string;
 }
+
+const manifestSchema = z.object({
+  videos: z
+    .array(
+      z.object({
+        name: z.string(),
+        relativePath: z.string(),
+        timelinePath: z.string(),
+        status: z.enum(["pending", "processing", "done", "error"]),
+      }),
+    )
+    .catch([]),
+});
+
+const timelineSegmentSchema = z.object({
+  startSec: z.number(),
+  endSec: z.number(),
+  activity: z.string(),
+  workers: z.array(z.string()).optional(),
+  tools: z.array(z.string()).optional(),
+  materials: z.array(z.string()).optional(),
+  spatialContext: z.string().optional(),
+  safetyNotes: z.array(z.string()).optional(),
+  riskLevel: z.enum(["low", "medium", "high"]).optional(),
+  expertiseSignals: z.array(z.string()).optional(),
+  inefficiencySignals: z.array(z.string()).optional(),
+  communicationEvents: z.array(z.string()).optional(),
+  ergonomicNotes: z.array(z.string()).optional(),
+});
+
+const timelineDocumentSchema = z.object({
+  timeline: z
+    .object({
+      segments: z.array(timelineSegmentSchema).catch([]),
+    })
+    .optional(),
+});
 
 export default async function query(args: string[]): Promise<void> {
   const index = getFlag(args, "index") ?? "default";
@@ -75,10 +111,13 @@ export default async function query(args: string[]): Promise<void> {
     const timelinePath = resolve(indexDir, video.timelinePath);
     if (!(await fileExists(timelinePath))) continue;
 
-    const timelineDoc = JSON.parse(
+    const timelineRaw: unknown = JSON.parse(
       await readFile(timelinePath, "utf8"),
-    ) as TimelineDocument;
-    const segments = timelineDoc.timeline?.segments ?? [];
+    );
+    const parsedTimeline = timelineDocumentSchema.safeParse(timelineRaw);
+    const segments = parsedTimeline.success
+      ? (parsedTimeline.data.timeline?.segments ?? [])
+      : [];
 
     for (const segment of segments) {
       const score = scoreSegment(segment, search, terms);
@@ -130,10 +169,9 @@ export default async function query(args: string[]): Promise<void> {
 
 async function readManifest(manifestPath: string): Promise<IndexManifest> {
   try {
-    const raw = JSON.parse(
-      await readFile(manifestPath, "utf8"),
-    ) as Partial<IndexManifest>;
-    return { videos: Array.isArray(raw.videos) ? raw.videos : [] };
+    const raw: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
+    const parsedManifest = manifestSchema.safeParse(raw);
+    return { videos: parsedManifest.success ? parsedManifest.data.videos : [] };
   } catch {
     console.error("Index manifest not found. Run `ee process` first.");
     process.exit(1);
@@ -153,7 +191,11 @@ function scoreSegment(
     ...(segment.materials ?? []),
     segment.spatialContext ?? "",
     ...(segment.safetyNotes ?? []),
+    segment.riskLevel ?? "",
     ...(segment.expertiseSignals ?? []),
+    ...(segment.inefficiencySignals ?? []),
+    ...(segment.communicationEvents ?? []),
+    ...(segment.ergonomicNotes ?? []),
   ]
     .join(" ")
     .toLowerCase();

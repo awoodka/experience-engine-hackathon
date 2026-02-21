@@ -8,7 +8,7 @@ The best workers on a job site carry something that can't be written in a manual
 
 ## Our Solution
 
-Experience Engine uses AI to watch workers, find the experts, and reverse-engineer what makes them great. We take raw job site video, break it down into a searchable behavioral timeline, and let an AI agent analyze every movement, habit, and spatial decision across the entire dataset. Ask it a question — *"What does the best mason on this site do differently?"* — and it finds the answer, backed by real moments from the footage. It's not a training video. It's a system that discovers what should be taught in the first place.
+Experience Engine uses AI to watch workers, find the experts, and reverse-engineer what makes them great. We take raw job site video, break it down into a searchable behavioral timeline, and let an AI agent analyze every movement, habit, and spatial decision across the entire dataset. Ask it a question — _"What does the best mason on this site do differently?"_ — and it finds the answer, backed by real moments from the footage. It's not a training video. It's a system that discovers what should be taught in the first place.
 
 ## How It Works
 

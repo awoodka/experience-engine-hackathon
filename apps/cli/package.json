@@ -1,0 +1,22 @@
+{
+  "name": "@experience-engine/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ee": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "dev": "bun run ./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.30",
+    "@t3-oss/env-core": "^0.13.10",
+    "ai": "^6.0.97",
+    "zod": "^3.25.76"
+  }
+}

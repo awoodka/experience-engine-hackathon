@@ -1,1 +1,23 @@
 data
+node_modules
+.turbo
+dist
+.astro
+
+# Environment
+.env
+.env.*
+!.env.example
+apps/*/.env
+apps/*/.env.*
+!apps/*/.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# TypeScript
+*.tsbuildinfo

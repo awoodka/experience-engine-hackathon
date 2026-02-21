@@ -1,0 +1,7 @@
+node_modules
+dist
+.next
+.turbo
+.astro
+pnpm-lock.yaml
+package-lock.json

@@ -13,6 +13,8 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   "index-write": (await import("./commands/index-write.js")).default,
   "index-create": (await import("./commands/index-create.js")).default,
   "tutorial-render": (await import("./commands/tutorial-render.js")).default,
+  "behavioral-analyze": (await import("./commands/behavioral-analyze.js"))
+    .default,
   present: (await import("./commands/present.js")).default,
 };
 
@@ -45,6 +47,11 @@ if (!command || command === "--help" || command === "-h") {
     Shared flags: [--field <name> --value <val>] [--after <sec> --before <sec>]
       --raw    Strip wrapper, output flat data array
       --stats  Aggregate statistics (field distributions, numeric summaries)
+
+  Behavioral Analysis (Claude-powered):
+    ee behavioral-analyze                             Analyze all construction timelines
+    ee behavioral-analyze <hash>                      Analyze one timeline by ID
+    ee behavioral-analyze --model <id>                Override Claude model
 
   Presentation:
     ee present <path>                                 Show an image or video to the user

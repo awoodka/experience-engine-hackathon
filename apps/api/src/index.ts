@@ -35,9 +35,14 @@ app.post("/api/chat", async (c) => {
   const result = streamText({
     model,
     messages: await convertToModelMessages(messages),
+    onError: ({ error }) => {
+      console.error("[chat error]", error);
+    },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    sendError: true,
+  });
 });
 
 app.get("/api/health", (c) => {
@@ -46,5 +51,6 @@ app.get("/api/health", (c) => {
 
 export default {
   port: 7892,
+  idleTimeout: 300,
   fetch: app.fetch,
 };

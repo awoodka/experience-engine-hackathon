@@ -25,6 +25,12 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["**/dist/", "**/.astro/", "**/.turbo/", "**/node_modules/"],
+    ignores: [
+      "**/dist/",
+      "**/.astro/",
+      "**/.turbo/",
+      "**/node_modules/",
+      "**/src/components/ui/",
+    ],
   },
 );

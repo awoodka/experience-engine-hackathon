@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Film,
   HardHat,
+  Image,
   Loader2,
   Square,
   XCircle,

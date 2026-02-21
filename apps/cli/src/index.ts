@@ -6,6 +6,7 @@ const command = args[0];
 const commands: Record<string, (args: string[]) => Promise<void>> = {
   process: (await import("./commands/process.js")).default,
   query: (await import("./commands/query.js")).default,
+  score: (await import("./commands/score.js")).default,
   list: (await import("./commands/list.js")).default,
   status: (await import("./commands/status.js")).default,
 };
@@ -19,6 +20,8 @@ if (!command || command === "--help" || command === "-h") {
                                                     Build/resume a behavioral index
     ee query <search> [--index <name>] [--limit <n>]
                                                     Search an index
+    ee score [--index <name>] [--output <path>] [--limit <n>]
+                                                    Compute heuristic scores from timelines
     ee list                                         Show all indices
     ee status [--index <name>]                      Show index processing progress
   `);

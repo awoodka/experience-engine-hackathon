@@ -1,3 +1,8 @@
+/**
+ * Process command: builds or resumes a behavioral index from construction-site video.
+ * Scans `data/` for videos, invokes Gemini for structured timeline extraction,
+ * and persists timelines under `data/.ee/indices/<index>/timelines/`.
+ */
 import { createHash } from "node:crypto";
 import {
   mkdir,
@@ -13,11 +18,16 @@ import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { env } from "../env";
 
+/** Root directory for video files (relative to CLI package). */
 const DATA_DIR = resolve(import.meta.dirname, "../../../../data");
+/** Directory containing all behavioral indices. */
 const INDICES_DIR = resolve(DATA_DIR, ".ee/indices");
+/** Subdirectory name for timeline JSON files per index. */
 const TIMELINES_DIR_NAME = "timelines";
+/** Default index name when --index is not specified. */
 const DEFAULT_INDEX = "default";
 
+/** File extensions treated as video for discovery. */
 const VIDEO_EXTENSIONS = new Set([
   ".mp4",
   ".mov",
@@ -29,6 +39,7 @@ const VIDEO_EXTENSIONS = new Set([
   ".mpg",
 ]);
 
+/** Built-in prompt sent to Gemini to guide behavioral timeline extraction. */
 const DEFAULT_ANALYSIS_PROMPT = `
 You are an expert construction-site behavior analyst.
 
@@ -47,46 +58,64 @@ Prefer concise, objective descriptions over speculation.
 Use empty arrays when a signal type is not observed in a segment.
 `.trim();
 
+/** Processing status for a video in the manifest. */
 type VideoStatus = "pending" | "processing" | "done" | "error";
 
+/** Metadata for a discovered video file on disk. */
 interface VideoSource {
+  /** Short hash-based id (first 12 chars of sha1 of path). */
   id: string;
   name: string;
   absolutePath: string;
   relativePath: string;
   sizeBytes: number;
   mtimeMs: number;
+  /** SHA-256 of path:size:mtime used to detect file changes. */
   fileFingerprint: string;
 }
 
+/** High-level phase of work within a video (e.g. setup, assembly, cleanup). */
 interface TimelinePhase {
   label: string;
   startSec: number;
   endSec: number;
 }
 
+/** Single behavioral segment within the timeline. */
 interface TimelineSegment {
   startSec: number;
   endSec: number;
+  /** Brief description of the activity in this segment. */
   activity: string;
+  /** Worker labels or descriptions present. */
   workers: string[];
+  /** Tools used or visible. */
   tools: string[];
+  /** Materials involved. */
   materials: string[];
+  /** Spatial context (location, layout, positioning). */
   spatialContext: string;
+  /** Safety-related observations. */
   safetyNotes: string[];
   riskLevel: "low" | "medium" | "high";
+  /** Signs of expertise (craft quality, efficiency). */
   expertiseSignals: string[];
+  /** Signs of inefficiency (wasted motion, rework, idle time). */
   inefficiencySignals: string[];
+  /** Verbal cues, hand signals, coordination events. */
   communicationEvents: string[];
+  /** Body mechanics, posture, lifting technique, strain risks. */
   ergonomicNotes: string[];
 }
 
+/** Full timeline output returned by Gemini. */
 interface TimelineOutput {
   videoSummary: string;
   highLevelPhases: TimelinePhase[];
   segments: TimelineSegment[];
 }
 
+/** Wrapper for persisted timeline including provenance metadata. */
 interface TimelineDocument {
   schemaVersion: number;
   generatedAt: string;
@@ -98,17 +127,21 @@ interface TimelineDocument {
     fileFingerprint: string;
   };
   modelId: string;
+  /** Hash of prompt used for analysis (for invalidation). */
   promptHash: string;
   timeline: TimelineOutput;
 }
 
+/** Video entry in the index manifest. */
 interface ManifestVideo {
+  /** Short hash-based id (first 12 chars of sha1 of path). */
   id: string;
   name: string;
   relativePath: string;
   sizeBytes: number;
   mtimeMs: number;
   fileFingerprint: string;
+  /** Path to timeline JSON relative to index dir (e.g. timelines/abc123.timeline.json). */
   timelinePath: string;
   status: VideoStatus;
   modelId: string;
@@ -118,6 +151,7 @@ interface ManifestVideo {
   error?: string;
 }
 
+/** Manifest file structure for an index (manifest.json). */
 interface IndexManifest {
   version: number;
   schemaVersion: number;
@@ -130,6 +164,7 @@ interface IndexManifest {
   videos: ManifestVideo[];
 }
 
+/** Zod schema for validating manifest video entries on disk. */
 const manifestVideoSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -146,6 +181,7 @@ const manifestVideoSchema = z.object({
   error: z.string().optional(),
 });
 
+/** Zod schema for the persisted manifest JSON (permits missing fields for migration). */
 const persistedManifestSchema = z.object({
   version: z.number().optional(),
   schemaVersion: z.number().optional(),
@@ -154,6 +190,7 @@ const persistedManifestSchema = z.object({
   videos: z.array(manifestVideoSchema).catch([]),
 });
 
+/** JSON schema for Gemini structured output (timeline). */
 const TIMELINE_SCHEMA = jsonSchema<TimelineOutput>({
   type: "object",
   additionalProperties: false,
@@ -213,6 +250,10 @@ const TIMELINE_SCHEMA = jsonSchema<TimelineOutput>({
   required: ["videoSummary", "highLevelPhases", "segments"],
 });
 
+/**
+ * Main process command entry point.
+ * Discovers videos, reconciles manifest, queues work, and processes each video via Gemini.
+ */
 export default async function processCommand(args: string[]): Promise<void> {
   const index = getFlag(args, "index") ?? DEFAULT_INDEX;
   const promptArg = getFlag(args, "prompt");
@@ -224,6 +265,7 @@ export default async function processCommand(args: string[]): Promise<void> {
   const timelinesDir = resolve(indexDir, TIMELINES_DIR_NAME);
   const manifestPath = resolve(indexDir, "manifest.json");
 
+  // Ensure index and timelines directories exist
   await mkdir(timelinesDir, { recursive: true });
 
   const { promptText, promptPath, promptHash } = await loadPrompt(promptArg);
@@ -248,6 +290,7 @@ export default async function processCommand(args: string[]): Promise<void> {
   const queue: VideoSource[] = [];
   manifest.videos = [];
 
+  // Reconcile manifest with discovered videos; queue videos that need reprocessing
   for (const source of videos) {
     const existing = existingByPath.get(source.relativePath);
     const timelinePath =
@@ -255,6 +298,7 @@ export default async function processCommand(args: string[]): Promise<void> {
       `${TIMELINES_DIR_NAME}/${source.id}.timeline.json`;
     const timelineExists = await fileExists(resolve(indexDir, timelinePath));
 
+    // Determine if this video must be reprocessed
     const needsReprocess =
       force ||
       !existing ||
@@ -318,6 +362,7 @@ export default async function processCommand(args: string[]): Promise<void> {
 
     if (!entry) continue;
 
+    // Mark as processing and persist before starting (for resume visibility)
     entry.status = "processing";
     entry.startedAt = new Date().toISOString();
     entry.error = undefined;
@@ -374,6 +419,10 @@ export default async function processCommand(args: string[]): Promise<void> {
   }
 }
 
+/**
+ * Analyzes a video with Gemini and returns a structured behavioral timeline.
+ * Uses structured output (TIMELINE_SCHEMA) to enforce the timeline format.
+ */
 async function analyzeVideo(
   source: VideoSource,
   promptText: string,
@@ -404,6 +453,9 @@ async function analyzeVideo(
   return output;
 }
 
+/**
+ * Builds the full prompt sent to Gemini (instructions + video filename + behavioral prompt).
+ */
 function buildPromptForVideo(source: VideoSource, promptText: string): string {
   return [
     "Analyze this construction-site video and extract a structured behavioral timeline.",
@@ -416,6 +468,10 @@ function buildPromptForVideo(source: VideoSource, promptText: string): string {
   ].join("\n");
 }
 
+/**
+ * Scans a directory for video files (by extension) and returns metadata.
+ * Sorts by filename. Uses SHA-1 of path for id and SHA-256 of path:size:mtime for fingerprint.
+ */
 async function discoverVideos(root: string): Promise<VideoSource[]> {
   const entries = await readdir(root, { withFileTypes: true });
   const videos: VideoSource[] = [];
@@ -450,6 +506,10 @@ async function discoverVideos(root: string): Promise<VideoSource[]> {
   return videos;
 }
 
+/**
+ * Loads the analysis prompt: from file if --prompt given, else built-in default.
+ * Returns prompt text, path (or null), and SHA-256 hash for invalidation.
+ */
 async function loadPrompt(promptArg: string | undefined): Promise<{
   promptText: string;
   promptPath: string | null;
@@ -473,6 +533,10 @@ async function loadPrompt(promptArg: string | undefined): Promise<{
   };
 }
 
+/**
+ * Loads or creates the index manifest. Creates empty manifest if file missing or invalid.
+ * Overwrites promptPath, promptHash, modelId with current run values.
+ */
 async function loadManifest(
   manifestPath: string,
   index: string,
@@ -534,6 +598,9 @@ async function loadManifest(
   }
 }
 
+/**
+ * Saves manifest atomically (write to .tmp, then rename).
+ */
 async function saveManifest(
   manifestPath: string,
   manifest: IndexManifest,
@@ -544,10 +611,12 @@ async function saveManifest(
   await rename(tmpPath, manifestPath);
 }
 
+/** Writes JSON with pretty-print (2 spaces) and trailing newline. */
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/** Returns true if path exists, false if stat throws (e.g. ENOENT). */
 async function fileExists(path: string): Promise<boolean> {
   try {
     await stat(path);
@@ -557,6 +626,7 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
+/** Maps file extension to MIME type for Gemini video API. */
 function mediaTypeFromPath(path: string): string {
   const ext = extname(path).toLowerCase();
 
@@ -568,10 +638,12 @@ function mediaTypeFromPath(path: string): string {
   return "video/mp4";
 }
 
+/** SHA-256 hash of text (used for prompt invalidation). */
 function hashText(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
+/** Formats byte count as human-readable string (e.g. 1024 -> "1KB"). */
 function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
@@ -586,11 +658,13 @@ function formatBytes(bytes: number): string {
   return `${rounded}${units[unitIndex]}`;
 }
 
+/** Extracts a safe string from an unknown error for logging. */
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
 }
 
+/** Gets the value of --<name> <value> from args. */
 function getFlag(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
   return i !== -1 && i + 1 < args.length && !args[i + 1].startsWith("--")
@@ -598,10 +672,12 @@ function getFlag(args: string[], name: string): string | undefined {
     : undefined;
 }
 
+/** Returns true if --<name> is present in args. */
 function hasFlag(args: string[], name: string): boolean {
   return args.includes(`--${name}`);
 }
 
+/** Parses --<name> value as positive integer; exits with error if invalid. */
 function getNumberFlag(args: string[], name: string): number | undefined {
   const raw = getFlag(args, name);
   if (raw == null) return undefined;

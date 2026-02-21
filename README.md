@@ -1,5 +1,5 @@
 # experience-engine
 
 bun i
-bun sync
+bun data-pull
 bun dev

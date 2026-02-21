@@ -23,7 +23,7 @@ Run from repo root unless noted.
 - `bun run build`: build all workspaces (`dist/`, `.astro/` outputs).
 - `bun run check`: format + lint fix (`prettier --write` and `eslint --fix`).
 - `bun run ee --help` or `./ee --help`: inspect CLI commands.
-- `bun run sync` / `bun run upload`: pull/push `data/` with `gh` CLI.
+- `bun run data-pull` / `bun run data-push`: pull/push `data/` with `gh` CLI.
 
 ## Coding Style & Naming Conventions
 

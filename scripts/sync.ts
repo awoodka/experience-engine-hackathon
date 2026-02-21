@@ -4,10 +4,10 @@
  * Team data sync via a secret GitHub Gist.
  *
  * Usage:
- *   bun upload   — Push local data/ to the team
- *   bun sync     — Pull the latest data/ from the team
+ *   bun data-push  — Push local data/ to the team
+ *   bun data-pull  — Pull the latest data/ from the team
  *
- * On first `bun upload`, a secret gist is created and its ID is saved to .gist-id.
+ * On first `bun data-push`, a secret gist is created and its ID is saved to .gist-id.
  * Share the .gist-id file with your team (it's gitignored).
  * The gist is completely separate from this repo — stays private even if the repo goes public.
  *
@@ -125,14 +125,16 @@ async function upload() {
   console.log(
     `\x1b[32m✓\x1b[0m Uploaded by ${user} at ${timestamp} (hash: ${localHash})`,
   );
-  console.log("Team members can run \x1b[1mbun sync\x1b[0m to get this data.");
+  console.log(
+    "Team members can run \x1b[1mbun data-pull\x1b[0m to get this data.",
+  );
 }
 
 async function sync() {
   const gistId = getGistId();
   if (!gistId) {
     console.error(
-      "Error: No .gist-id file found. Either run 'bun upload' first, or get the .gist-id file from a teammate.",
+      "Error: No .gist-id file found. Either run 'bun data-push' first, or get the .gist-id file from a teammate.",
     );
     process.exit(1);
   }
@@ -140,7 +142,7 @@ async function sync() {
   const meta = await getRemoteMeta(gistId);
   if (!meta) {
     console.error(
-      "Error: No data has been uploaded yet. Run 'bun upload' first.",
+      "Error: No data has been uploaded yet. Run 'bun data-push' first.",
     );
     process.exit(1);
   }
@@ -178,13 +180,13 @@ async function sync() {
 
 const command = process.argv[2];
 
-if (command === "upload") {
+if (command === "push") {
   await upload();
-} else if (command === "sync" || !command) {
+} else if (command === "pull" || !command) {
   await sync();
 } else {
   console.log("Usage:");
-  console.log("  bun upload  — Push local data/ for your team");
-  console.log("  bun sync    — Pull latest data/ from your team");
+  console.log("  bun data-push  — Push local data/ for your team");
+  console.log("  bun data-pull  — Pull latest data/ from your team");
   process.exit(1);
 }

@@ -13,8 +13,8 @@
     "check": "prettier --write . && eslint --fix . && bun scripts/validate-indices.ts && bun scripts/validate-tutorials.ts",
     "agent": "bun scripts/agent.ts",
     "ee": "bun --cwd apps/cli src/index.ts",
-    "sync": "bun scripts/sync.ts sync",
-    "upload": "bun scripts/sync.ts upload"
+    "data-pull": "bun scripts/sync.ts pull",
+    "data-push": "bun scripts/sync.ts push"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",

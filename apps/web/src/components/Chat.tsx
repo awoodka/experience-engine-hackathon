@@ -106,7 +106,6 @@ type ChatToolPart = ToolUIPart | DynamicToolUIPart;
 
 function ToolPart({ part }: { part: ChatToolPart }) {
   const [open, setOpen] = useState(false);
-  const name = getToolName(part) ?? "tool";
   const state = part.state;
 
   const isRunning =
@@ -120,6 +119,12 @@ function ToolPart({ part }: { part: ChatToolPart }) {
   const input = part.input;
   const output = part.output;
   const errorText = part.errorText;
+
+  const description =
+    input != null && typeof input === "object" && "description" in input
+      ? String((input as Record<string, unknown>).description)
+      : null;
+  const name = description ?? getToolName(part) ?? "tool";
 
   const hasDetails = input != null || output != null || errorText != null;
 
@@ -152,7 +157,9 @@ function ToolPart({ part }: { part: ChatToolPart }) {
             hasDetails && "cursor-pointer hover:bg-[var(--color-ee-border)]",
           )}
         >
-          <span className="font-medium">{`${isRunning ? "Using" : "Used"} ${name}`}</span>
+          <span className="font-medium">
+            {description ? name : `${isRunning ? "Using" : "Used"} ${name}`}
+          </span>
           {hasDetails && (
             <ChevronDown
               className={cn(
@@ -425,7 +432,14 @@ export default function Chat() {
               `<details>\n<summary>Thinking</summary>\n\n${part.text}\n\n</details>`,
             );
           } else if (isToolUIPart(part)) {
-            const name = getToolName(part) ?? "tool";
+            const toolInput = part.input;
+            const toolDesc =
+              toolInput != null &&
+              typeof toolInput === "object" &&
+              "description" in toolInput
+                ? String((toolInput as Record<string, unknown>).description)
+                : null;
+            const name = toolDesc ?? getToolName(part) ?? "tool";
             const lines: string[] = [];
             if (part.input != null) {
               const inputStr =

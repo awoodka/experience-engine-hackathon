@@ -10,8 +10,8 @@
  *   4. Write the enriched entry back
  */
 
-import { execSync, spawnSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { spawnSync } from "child_process";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
 const ROOT = new URL("..", import.meta.url).pathname;

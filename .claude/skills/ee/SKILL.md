@@ -665,39 +665,39 @@ Every `implicitIntent` in the behavioral index has a `spatialIntelligence` block
 
 **Body orientation — plain language:**
 
-| Label | Say instead |
-|---|---|
-| `face_target_before_act` | "squared up to the wall" / "already facing the work" |
+| Label                     | Say instead                                               |
+| ------------------------- | --------------------------------------------------------- |
+| `face_target_before_act`  | "squared up to the wall" / "already facing the work"      |
 | `angled_away_from_target` | "off-axis" / "body turned away from what he's working on" |
-| `lean_in_for_precision` | "leaning in close" / "bent over the work" |
-| `overhead_extension` | "working with arms overhead" |
-| `square_up_before_lift` | "squared his hips to the load before lifting" |
-| `retreat_for_clearance` | "stepped back to make room" |
-| `scan_before_move` | "scanned the area before moving" |
+| `lean_in_for_precision`   | "leaning in close" / "bent over the work"                 |
+| `overhead_extension`      | "working with arms overhead"                              |
+| `square_up_before_lift`   | "squared his hips to the load before lifting"             |
+| `retreat_for_clearance`   | "stepped back to make room"                               |
+| `scan_before_move`        | "scanned the area before moving"                          |
 
 **Distance before action — plain language:**
 
-| Label | Say instead |
-|---|---|
-| `close_gap_before_install` | "within arm's reach" / "already close enough" |
-| `overreach_no_reposition` | "overreaching — stretched too far without repositioning" |
-| `reposition_until_comfortable` | "adjusting his stance to find a comfortable position" |
-| `consistent_working_distance` | "steady working distance — same spot throughout" |
-| `variable_working_distance` | "inconsistent distance — stepping in and out" |
-| `maintain_safe_distance` | "kept a safe distance before committing" |
+| Label                          | Say instead                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `close_gap_before_install`     | "within arm's reach" / "already close enough"            |
+| `overreach_no_reposition`      | "overreaching — stretched too far without repositioning" |
+| `reposition_until_comfortable` | "adjusting his stance to find a comfortable position"    |
+| `consistent_working_distance`  | "steady working distance — same spot throughout"         |
+| `variable_working_distance`    | "inconsistent distance — stepping in and out"            |
+| `maintain_safe_distance`       | "kept a safe distance before committing"                 |
 
 Drop the meters estimate unless it genuinely clarifies scale. If you use it, convert: 0.3m ≈ 1 foot, 0.5m ≈ 1.5 feet.
 
 **Trajectory efficiency — plain language:**
 
-| Label | Say instead |
-|---|---|
-| `direct_path` | "no wasted steps" / "straight line to the work" |
-| `backtrack_detected` | "went back the way he came — had to retrace" |
-| `stationary_pivot` | "pivots in place, doesn't move his feet" |
-| `search_pattern` | "no clear path — searching before committing" |
-| `minor_deviation` | "slight detour, mostly direct" |
-| `significant_deviation` | "took the long way around" |
+| Label                   | Say instead                                     |
+| ----------------------- | ----------------------------------------------- |
+| `direct_path`           | "no wasted steps" / "straight line to the work" |
+| `backtrack_detected`    | "went back the way he came — had to retrace"    |
+| `stationary_pivot`      | "pivots in place, doesn't move his feet"        |
+| `search_pattern`        | "no clear path — searching before committing"   |
+| `minor_deviation`       | "slight detour, mostly direct"                  |
+| `significant_deviation` | "took the long way around"                      |
 
 Never mention the `efficiencyRatio` number. Describe the behavior.
 

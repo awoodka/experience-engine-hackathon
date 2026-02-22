@@ -100,7 +100,7 @@ const IMPROVEMENTS: Improvement[] = [
         "Pre-stage the mesh so the carry flows directly into placement \u2014 no pause.",
       thumbnailPath: "/data/tutorials/mesh-idle-gap/thumb.jpg",
       videoPath: "/data/tutorials/mesh-idle-gap/video.mp4",
-      durationSec: 40,
+      durationSec: 31,
     },
   },
   {
@@ -118,7 +118,7 @@ const IMPROVEMENTS: Improvement[] = [
         "Pre-position before the crane arrives \u2014 don\u2019t wait for it to come to you.",
       thumbnailPath: "/data/tutorials/crane-wait-placement/thumb.jpg",
       videoPath: "/data/tutorials/crane-wait-placement/video.mp4",
-      durationSec: 38,
+      durationSec: 36,
     },
   },
 ];

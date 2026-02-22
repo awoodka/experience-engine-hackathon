@@ -7,7 +7,12 @@ interface Props {
 
 const { title } = Astro.props;
 const pathname = Astro.url.pathname;
-const isChat = pathname === "/" || pathname.startsWith("/chat");
+
+const navLinks = [
+  { href: "/", label: "Chat", active: pathname === "/" || pathname.startsWith("/chat") },
+  { href: "/tutorials", label: "Tutorials", active: pathname.startsWith("/tutorials") },
+  { href: "/review", label: "Review", active: pathname.startsWith("/review") },
+];
 ---
 
 <!doctype html>
@@ -20,61 +25,111 @@ const isChat = pathname === "/" || pathname.startsWith("/chat");
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <title>{title}</title>
   </head>
-  <body
-    style="display: flex; flex-direction: column; height: 100dvh; margin: 0; overflow: hidden;"
-  >
-    <!-- Top navigation bar -->
-    <nav
-      style="
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        height: 48px;
-        min-height: 48px;
-        padding: 0 1.25rem;
-        z-index: 10;
-      "
-    >
-      <a
-        href="/"
-        style={`
-          padding: 0.3rem 0.75rem;
-          border-radius: 6px;
-          text-decoration: none;
-          font-size: 0.875rem;
-          font-weight: 500;
-          transition: background 0.15s;
-          color: ${isChat ? "var(--color-ee-accent)" : "var(--color-ee-text-secondary)"};
-          background: ${isChat ? "rgba(245,158,11,0.1)" : "transparent"};
-        `}
-      >
-        Chat
-      </a>
-      <a
-        href="/tutorials"
-        style={`
-          padding: 0.3rem 0.75rem;
-          border-radius: 6px;
-          text-decoration: none;
-          font-size: 0.875rem;
-          font-weight: 500;
-          transition: background 0.15s;
-          color: ${pathname.startsWith("/tutorials") ? "var(--color-ee-accent)" : "var(--color-ee-text-secondary)"};
-          background: ${pathname.startsWith("/tutorials") ? "rgba(245,158,11,0.1)" : "transparent"};
-        `}
-      >
-        Tutorials
-      </a>
-    </nav>
-
-    <!-- Page content fills remaining height -->
-    <div style="flex: 1; min-height: 0; overflow: hidden;">
-      <slot />
+  <body>
+    <div class="ee-shell">
+      <nav class="ee-nav">
+        <a href="/" class="ee-nav__brand">EE</a>
+        <div class="ee-nav__links">
+          {navLinks.map(({ href, label, active }) => (
+            <a
+              href={href}
+              class:list={["ee-nav__link", { "ee-nav__link--active": active }]}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </nav>
+      <main class="ee-main">
+        <slot />
+      </main>
     </div>
   </body>
 </html>
+
+<style>
+  .ee-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ee-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.75rem;
+    height: 52px;
+    min-height: 52px;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--color-ee-border);
+    background: var(--color-ee-bg);
+    z-index: 20;
+  }
+
+  .ee-nav__brand {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: var(--color-ee-accent);
+    text-decoration: none;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    transition: opacity 0.2s;
+  }
+
+  .ee-nav__brand:hover {
+    opacity: 0.8;
+  }
+
+  .ee-nav__links {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    height: 100%;
+  }
+
+  .ee-nav__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--color-ee-text-faint);
+    transition: color 0.2s;
+  }
+
+  .ee-nav__link:hover {
+    color: var(--color-ee-text-secondary);
+  }
+
+  .ee-nav__link--active {
+    color: var(--color-ee-text);
+  }
+
+  .ee-nav__link--active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0.75rem;
+    right: 0.75rem;
+    height: 2px;
+    background: var(--color-ee-accent);
+    border-radius: 1px 1px 0 0;
+  }
+
+  .ee-main {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+</style>

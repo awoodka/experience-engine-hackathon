@@ -657,6 +657,73 @@ typically has 4–7 steps. Keep narration direct. Keep play clips to 3–8 secon
 each. Keep pause descriptions to one sentence — pauses are meant to point at
 something specific, not to linger.
 
+### Using Spatial Intelligence
+
+Every `implicitIntent` in the behavioral index has a `spatialIntelligence` block with three dimensions — body orientation, distance before action, and trajectory efficiency. These are physical signals extracted from the video clip. Use them to ground the tutorial in what the viewer can literally observe about how the worker moves.
+
+**Read and translate — never quote directly.** The raw labels and observations use technical vocabulary that means nothing to a tradesperson. Your job is to translate them into the plainest possible physical description. One sentence, no jargon.
+
+**Body orientation — plain language:**
+
+| Label | Say instead |
+|---|---|
+| `face_target_before_act` | "squared up to the wall" / "already facing the work" |
+| `angled_away_from_target` | "off-axis" / "body turned away from what he's working on" |
+| `lean_in_for_precision` | "leaning in close" / "bent over the work" |
+| `overhead_extension` | "working with arms overhead" |
+| `square_up_before_lift` | "squared his hips to the load before lifting" |
+| `retreat_for_clearance` | "stepped back to make room" |
+| `scan_before_move` | "scanned the area before moving" |
+
+**Distance before action — plain language:**
+
+| Label | Say instead |
+|---|---|
+| `close_gap_before_install` | "within arm's reach" / "already close enough" |
+| `overreach_no_reposition` | "overreaching — stretched too far without repositioning" |
+| `reposition_until_comfortable` | "adjusting his stance to find a comfortable position" |
+| `consistent_working_distance` | "steady working distance — same spot throughout" |
+| `variable_working_distance` | "inconsistent distance — stepping in and out" |
+| `maintain_safe_distance` | "kept a safe distance before committing" |
+
+Drop the meters estimate unless it genuinely clarifies scale. If you use it, convert: 0.3m ≈ 1 foot, 0.5m ≈ 1.5 feet.
+
+**Trajectory efficiency — plain language:**
+
+| Label | Say instead |
+|---|---|
+| `direct_path` | "no wasted steps" / "straight line to the work" |
+| `backtrack_detected` | "went back the way he came — had to retrace" |
+| `stationary_pivot` | "pivots in place, doesn't move his feet" |
+| `search_pattern` | "no clear path — searching before committing" |
+| `minor_deviation` | "slight detour, mostly direct" |
+| `significant_deviation` | "took the long way around" |
+
+Never mention the `efficiencyRatio` number. Describe the behavior.
+
+**When spatial is GOOD but behavior is BAD — isolate the problem:**
+The worker's body mechanics are sound, but the task sequence reveals the failure. Use this to tell the worker exactly what they're doing right and where the actual waste is.
+
+> "He's squared up and within arm's reach — the body mechanics are right. The problem is what he does from there: loads the trowel, scrapes back the excess, loads again."
+
+This is more useful than a generic "experienced masons do it in one motion" — it tells the worker their positioning isn't the issue.
+
+**When spatial is BAD and compounds the behavior — layer it in:**
+The physical mechanics add to the behavioral problem. Use spatial to show that the mistake is costing more than it appears.
+
+> "He's already overreaching by the time he places the block — which means every correction after placement takes twice the effort."
+
+**Where in the tutorial to use it:**
+
+- **Narrate** — Use spatial to set up what the viewer is about to watch physically. Keeps it short: one clause that primes the eye. "He's squared up to the wall — watch what he does next."
+- **Pause caption** — Use only if the spatial observation makes the bounding box more meaningful. "Already within arm's reach — the hesitation is the only extra step."
+- **Root-cause** — Primary home for spatial intelligence. Tie the physical signal to the expert habit: what does a competent worker's body do that this worker's body doesn't (or does, if the spatial is positive)?
+- **Takeaway** — Use if spatial points to a concrete physical action: "Get within arm's reach before you commit to the spread."
+
+**Only use it where it adds something the behavioral reasoning doesn't already say.** If the spatial observation is redundant — if it just restates what the narration already makes obvious — leave it out. One purposeful sentence beats three that dilute the point.
+
+---
+
 ### Step-by-Step Workflow
 
 1. **Read behavioral entries — the reasoning IS the script**
@@ -695,7 +762,7 @@ something specific, not to linger.
 
    3. **Pause** — freeze on the key frame. Red bounding box on the specific moment of failure. Caption names the failure in ≤8 words. Get the bounding box from Gemini via `video-frame` + `video-analyze`, then verify it with `video-frame --region`.
 
-   4. **Root-cause** — why experienced workers don't do this, and what they do instead. From the reasoning's implication. Include at least one spatial observation (distance, body orientation, or trajectory) from `spatialIntelligence`.
+   4. **Root-cause** — why experienced workers don't do this, and what they do instead. From the reasoning's implication. Read the `spatialIntelligence` block and translate at least one dimension into plain language (see "Using Spatial Intelligence" above). If the spatial signals are positive, use them to isolate where the waste actually lives. If negative, use them to show how the physical mechanics compound the behavioral failure.
 
    5. **Takeaway** — one sentence, one concrete action the viewer can do tomorrow.
 
@@ -817,6 +884,9 @@ something specific, not to linger.
 - Guessing bounding box coordinates without verifying them on a frame
 - Presenting the video immediately after rendering without reviewing it
 - Presenting after tutorial-review passes without also running tutorial-assess — a technically correct video can still fail to teach experience
+- Quoting spatial intelligence labels or observations verbatim — always translate into plain physical language before using in any tutorial step
+- Skipping spatial intelligence in the root-cause card — it must appear in at least one step, translated into plain language
+- Using spatial intelligence redundantly — if it just restates what the narration already says, leave it out
 - Forgetting to run `bun check` after modifying config.json
 - Using jargon or formal language instead of plain, conversational words
 

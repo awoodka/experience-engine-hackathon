@@ -584,30 +584,46 @@ onto the video frame, and then verifies it actually highlights the right thing.
 
 ### Writing Style
 
-**The reasoning field is the script.** Every narrate card must come from an `implicitIntent`
-`reasoning` in the behavioral index — not from your own summary, not from the `activity` field,
-not invented. If you find yourself writing narration that doesn't trace back to a specific
-reasoning string, stop and go back to the index.
+**The reasoning and spatialIntelligence fields together are the script.** Every narrate card
+must come from an `implicitIntent` in the behavioral index — specifically its `reasoning` text
+and `spatialIntelligence` observations. Do not invent narration. Do not paraphrase generically.
 
-**Translate reasoning into two cards per behavioral moment:**
+Each `implicitIntent` gives you two complementary layers:
 
-- Card 1: what this worker did and why it hurts (from the reasoning's problem clause)
-- Card 2: what an expert does instead (from the reasoning's implication — make it explicit)
+- **`reasoning`** — the behavioral story: what the task sequence reveals about skill level, and
+  what an expert would do instead
+- **`spatialIntelligence`** — the physical evidence: exactly how the body was positioned, how
+  close they got, how efficiently they moved through space
 
-**Be literal.** Name the action, the object, the consequence. No metaphors.
+Use both. The reasoning tells you *what* happened and *why* it matters. The spatial observations
+tell you *how it looked physically* — and those concrete details are what make the narration
+specific enough to be useful.
 
-- **Bad:** "He hesitates before placing the block."
-- **Good:** "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle."
+**Three spatial fields, three types of detail to cite:**
 
-**The expert contrast is mandatory.** Every behavioral moment shown must be followed by a
-narrate card explaining what an experienced tradesperson does differently and why. This is
-the point of the tutorial — not just showing what went wrong, but teaching what right looks like.
+- `bodyOrientation.observation` — how the worker positioned their body relative to the work.
+  Cite this when describing setup: "he leaned in to 0.2m", "squared up before the lift",
+  "angled away from the joint".
+- `distanceBeforeAction.estimatedMeters + observation` — how close they got before committing.
+  Cite the number: "stayed 0.6m back", "closed to 0.2m", "overreached at arm's length".
+- `trajectoryEfficiency.efficiencyRatio + observation` — quality of the movement path.
+  Cite the ratio: "0.52 efficiency — path was nearly twice the direct distance", "ratio 1.0,
+  stationary pivot, zero wasted steps".
 
-- **Bad:** shows the hesitation clip, then takeaway "Don't hesitate."
-- **Good:** shows the clip, then narrate "An expert sequences the block around the rebar before lifting — the move is planned before it starts, so there's no stop."
+**Structure each behavioral moment as:**
 
-**Write for a person, not a document.** Say "he can't find his tape measure," not "suboptimal
-tool-retrieval workflow." Each sentence should earn its place.
+1. **Narrate** — what went wrong, from the reasoning's problem clause. Weave in the spatial
+   observation that physically explains it (e.g., "stepped back 0.6m instead of staying close").
+2. **Play** — clip at `intent.startSec` / `intent.endSec`.
+3. **Narrate** — expert contrast from the reasoning's implication. State what the physical
+   pattern looks like when done right (body position, distance, trajectory).
+4. Optionally: **root-cause** to pin the specific spatial deficit; **impact** to quantify the cost.
+
+**The expert contrast is mandatory.** Every clip showing a mistake must be followed by a
+narrate card that says concretely what an expert does differently — including how their spatial
+pattern differs. "An expert closes to 0.2m before committing" is useful. "Don't hesitate" is not.
+
+**Be literal.** Name the metric, the distance, the body position. No metaphors.
 
 ### Duration Limit
 
@@ -625,20 +641,13 @@ something specific, not to linger.
 
 ### Step-by-Step Workflow
 
-1. **Read behavioral entries — the reasoning IS the script**
-
-   Do not write narration from scratch. Do not invent commentary. The `reasoning`
-   field on every `implicitIntent` is the tutorial text — it was written to explain
-   exactly what happened and what it means about skill level.
+1. **Read behavioral entries — reasoning + spatialIntelligence together are the script**
 
    Read the behavioral entry files for the relevant videos:
-
    ```
    ./ee index-read behavioral entries/<video>.json
    ```
-
    Or search by category:
-
    ```
    ./ee index-read behavioral --search "hesitation"
    ./ee index-read behavioral --search "attention"
@@ -646,47 +655,56 @@ something specific, not to linger.
    ./ee index-read behavioral --search "smoothness"
    ```
 
-   Read every `reasoning` field you find. Each one tells a complete story:
-   - **Low score (< 65)**: describes what went wrong and why it hurts. Use it to explain the mistake and its cost.
-   - **High score (≥ 80)**: describes what expertise looks like and why it works. Use it to show the right behavior.
+   For each `implicitIntent`, read **all of these fields**:
+   - `score` — determines whether to frame as expert (≥ 80) or problem (< 65)
+   - `reasoning` — the behavioral story; source of what happened and expert contrast
+   - `spatialIntelligence.bodyOrientation.observation` — how the body was positioned
+   - `spatialIntelligence.distanceBeforeAction.estimatedMeters` + `.observation` — proximity
+   - `spatialIntelligence.trajectoryEfficiency.efficiencyRatio` + `.observation` — path quality
 
    **Never mention score numbers in narration or video text.** Scores are for your
    internal filtering only. Describe behavior qualitatively — the reasoning field
    already does this.
 
-   **Structure each behavioral moment as three steps:**
+   **Low-score intent (< 65)** — show the mistake. Reasoning explains what went wrong.
+   Spatial observations explain the physical cause. Expert contrast comes from reasoning's
+   implication plus what ideal spatial patterns look like for that action.
 
-   **Narrate** — what this worker did wrong, drawn directly from the reasoning's first clause.
-   State the behavior and why it's a problem.
+   **High-score intent (≥ 80)** — show expertise. Reasoning explains what right looks like.
+   Spatial observations give the physical proof — cite the distance, the ratio, the body position
+   that made it work.
 
-   **Play** — the clip at `intent.startSec` / `intent.endSec`. This shows the viewer exactly
-   what was described. No timestamps other than these — never guess.
+   **Worked example** — smoothness intent, score 55, from `03_production_masonry.mp4` seg 16:
 
-   **Narrate** — what an expert does instead. This comes from the implication in the reasoning.
-   Every low-score reasoning contains this contrast — read it carefully and make it explicit.
+   ```
+   reasoning: "...the worker's ability to square up their torso parallel to the concrete blocks
+   before lifting, maintaining a direct trajectory efficiency ratio of 0.95 from source to
+   destination. Furthermore, by closing the gap to just 0.2 meters from the wall before
+   installation, the worker minimizes lumbar strain and ensures precise alignment..."
 
-   **Example** — hesitation intent (score: 60), reasoning:
-
-   > "Worker paused to re-check block cell alignment before threading over tall rebar — slight
-   > struggle suggests uncertainty in sequencing the block around the steel, slowing the lay cycle."
-
-   Maps directly to:
-
-   ```json
-   { "type": "narrate", "text": "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
-   { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing to re-check block cell alignment before threading over rebar." },
-   { "type": "narrate", "text": "An expert sequences the block around the rebar before lifting it. The move is planned before it starts — no stop needed." }
+   spatialIntelligence:
+     bodyOrientation: "Worker positions their torso directly parallel to the concrete blocks
+                       before gripping and lifting them to ensure a balanced center of gravity."
+     distanceBeforeAction: estimatedMeters 0.2 — "Worker maintains a very close proximity of
+                           approximately 0.2 meters to the masonry wall while aligning the block."
+     trajectoryEfficiency: efficiencyRatio 0.95 — "Worker moves the blocks in a single, fluid
+                           arc from the pallet directly to the installation point with no reversals."
    ```
 
-   Then a single `takeaway` at the end — one concrete action the viewer can do tomorrow.
+   This maps to:
+   ```json
+   { "type": "narrate", "text": "Two micro-stops broke the carry rhythm — the block staging wasn't set up to flow directly to the wall." },
+   { "type": "play", "video": "03_production_masonry.mp4", "startSec": 708, "endSec": 742, "label": "Broken carry rhythm", "description": "Worker carrying blocks with two micro-stops; squared up before lifting; 0.95 trajectory efficiency." },
+   { "type": "root-cause", "text": "Staging too far back. Expert closes to 0.2m before install — no reset distance, no wasted arc." },
+   { "type": "narrate", "text": "An expert squares up to the block, lifts in one arc at 0.95 efficiency, and places it within 0.2m. No reversal, no reset." },
+   { "type": "takeaway", "text": "Stage your material within arm's reach before you start the carry." }
+   ```
 
    Verify every clip before writing the config:
-
    ```
    ./ee video-clip data/videos/<video> --start <intent.startSec> --end <intent.endSec>
    ./ee video-analyze <clip-path> "Does this clip show: <reasoning>? Answer yes or no."
    ```
-
    If no, try the parent segment boundaries or pick a different intent.
 
 2. **Draft config.json** — Write the tutorial script. Calculate the total
@@ -745,8 +763,10 @@ something specific, not to linger.
 ### Common Mistakes to Avoid
 
 - **Printing score numbers in chat, narration, or video text** — never say "score of 55" or "hesitation score 50." Describe behavior qualitatively instead.
+- Writing narration without reading `spatialIntelligence` — body position, distance, and trajectory data must be in the cards
+- Ignoring the specific numbers: cite `estimatedMeters` and `efficiencyRatio` — "0.2m" and "ratio 0.95" are more useful than "he was close"
 - Writing narration that doesn't come from a `reasoning` field in the behavioral index
-- Omitting the expert contrast after showing a mistake — every bad behavior needs a "here's what an expert does instead"
+- Omitting the expert contrast after showing a mistake — state the physical pattern an expert uses, not just the behavioral one
 - Writing too many steps and exceeding the 40-second limit
 - Using long narration text (each sentence costs 2–8 seconds)
 - Using creative metaphors that replace what's literally shown ("archaeological expedition" instead of "he's digging through a messy bin")

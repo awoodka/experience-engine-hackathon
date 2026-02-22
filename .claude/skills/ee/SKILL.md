@@ -199,6 +199,7 @@ Each `spatialIntelligence` block captures three orthogonal physical signals:
 
 **1. Body Orientation** — posture and facing direction before/during action.
 Labels from `spatial-vocab.json → bodyOrientation`. Examples:
+
 - `face_target_before_act` — turned to face work object before initiating
 - `square_up_before_lift` — squared hips/shoulders to load before lifting
 - `retreat_for_clearance` — stepped back to create safety clearance
@@ -208,6 +209,7 @@ Labels from `spatial-vocab.json → bodyOrientation`. Examples:
 **2. Worker-Object Distance Before Action** — how close the worker got before
 committing to the action. Labels from `spatial-vocab.json → distanceBeforeAction`.
 Estimated in meters. Examples:
+
 - `close_gap_before_cut` — < 0.3m from cut surface before grinder/torch
 - `reposition_until_comfortable` — multiple stance adjustments before committing
 - `overreach_no_reposition` — acted at full arm extension, reducing control
@@ -216,6 +218,7 @@ Estimated in meters. Examples:
 **3. Trajectory Efficiency** — path quality from origin to work point.
 Ratio = straight-line distance / actual path length (1.0 = perfectly direct).
 Labels from `spatial-vocab.json → trajectoryEfficiency`. Examples:
+
 - `direct_path` — efficiency > 0.85, minimal wasted movement
 - `search_pattern` — efficiency < 0.40, no clear target path
 - `backtrack_detected` — moved toward target, reversed, re-approached
@@ -231,6 +234,7 @@ For each intent window, extract the clip and send to Gemini with the spatial pro
 ```
 
 **Spatial analysis prompt template:**
+
 ```
 Analyze this construction video clip for spatial worker behavior.
 For body orientation: describe how the worker positioned their body relative to the work object.
@@ -251,6 +255,7 @@ Return a one-sentence observation for each dimension describing exactly what you
 ```
 
 **Spatial analysis JSON schema** (pass as `--schema`):
+
 ```json
 {
   "type": "object",
@@ -282,7 +287,11 @@ Return a one-sentence observation for each dimension describing exactly what you
       "required": ["label", "efficiencyRatio", "observation"]
     }
   },
-  "required": ["bodyOrientation", "distanceBeforeAction", "trajectoryEfficiency"]
+  "required": [
+    "bodyOrientation",
+    "distanceBeforeAction",
+    "trajectoryEfficiency"
+  ]
 }
 ```
 
@@ -310,6 +319,13 @@ Return a one-sentence observation for each dimension describing exactly what you
 
 ### Answering user questions from behavioral data
 
+**NEVER expose raw score numbers to the user.** Scores (0–100) are internal ranking
+tools — use them to sort, filter, and compare, but never write "score of 55" or
+"hesitation score 50" in chat messages, narration, or video text. Instead, describe
+what the score means in plain language: "significant hesitation," "expert-level
+attention," "smooth and fluid," "struggled with coordination." The behavioral
+`reasoning` field already does this — lean on it.
+
 When a user asks about worker skill, hesitation, attention, coordination, smoothness,
 body position, distance, or movement efficiency — follow this pattern:
 
@@ -319,7 +335,7 @@ body position, distance, or movement efficiency — follow this pattern:
 4. **Quote the `reasoning` field** directly — it's 3+ sentences mixing behavioral + spatial observations
 5. **Cite `spatialIntelligence`** observations (body orientation, distance, trajectory) for physical evidence
 6. **Cite timestamps** (`startSec`–`endSec`) and `taskSet` for concrete evidence
-7. **Compare scores** across videos or segments to rank performance
+7. **Rank performance** using scores internally, but describe results in qualitative terms (not numbers)
 
 **Example flow** — "Which workers showed the most hesitation?":
 
@@ -359,6 +375,7 @@ Read data/index/behavioral/spatial-vocab.json
 ```
 
 If task-vocab doesn't exist yet, start with this seed vocab:
+
 ```json
 {
   "carry": "Transport, move, retrieve, or hand off materials or tools",
@@ -434,6 +451,7 @@ dimension from the clip, omit that key — never fabricate spatial data.
 **E. Score + reasoning**
 Score each instance 0–100 (100 = expert, fluent; 0 = very poor). Write **3 or more**
 plain-English sentences that integrate both behavioral and spatial observations:
+
 - Sentence 1: what the task-type sequence tells you (behavioral implicit intent)
 - Sentence 2: what the body / distance / trajectory data adds (spatial intelligence)
 - Sentence 3+: combined interpretation — what skill level this implies, what the
@@ -632,6 +650,10 @@ something specific, not to linger.
    - **Low score (< 65)**: describes what went wrong and why it hurts. Use it to explain the mistake and its cost.
    - **High score (≥ 80)**: describes what expertise looks like and why it works. Use it to show the right behavior.
 
+   **Never mention score numbers in narration or video text.** Scores are for your
+   internal filtering only. Describe behavior qualitatively — the reasoning field
+   already does this.
+
    **Structure each behavioral moment as three steps:**
 
    **Narrate** — what this worker did wrong, drawn directly from the reasoning's first clause.
@@ -722,6 +744,7 @@ something specific, not to linger.
 
 ### Common Mistakes to Avoid
 
+- **Printing score numbers in chat, narration, or video text** — never say "score of 55" or "hesitation score 50." Describe behavior qualitatively instead.
 - Writing narration that doesn't come from a `reasoning` field in the behavioral index
 - Omitting the expert contrast after showing a mistake — every bad behavior needs a "here's what an expert does instead"
 - Writing too many steps and exceeding the 40-second limit

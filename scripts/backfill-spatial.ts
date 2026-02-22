@@ -120,7 +120,11 @@ function ee(args: string[]): string {
 
 const MAX_CLIP_SECS = 25;
 
-function extractClip(videoName: string, startSec: number, endSec: number): string {
+function extractClip(
+  videoName: string,
+  startSec: number,
+  endSec: number,
+): string {
   const videoPath = join(DATA_DIR, videoName);
   if (!existsSync(videoPath)) {
     throw new Error(`Video not found: ${videoPath}`);
@@ -133,7 +137,14 @@ function extractClip(videoName: string, startSec: number, endSec: number): strin
     s = Math.max(0, mid - MAX_CLIP_SECS / 2);
     e = s + MAX_CLIP_SECS;
   }
-  const raw = ee(["video-clip", videoPath, "--start", String(s), "--end", String(e)]);
+  const raw = ee([
+    "video-clip",
+    videoPath,
+    "--start",
+    String(s),
+    "--end",
+    String(e),
+  ]);
   const result = JSON.parse(raw);
   return result.path;
 }
@@ -160,11 +171,24 @@ function rewriteReasoning(
   category: string,
   taskSet: string[],
   existingReasoning: string,
-  spatial: Record<string, { label: string; observation: string; expertSignal: boolean; estimatedMeters?: number; efficiencyRatio?: number }>,
+  spatial: Record<
+    string,
+    {
+      label: string;
+      observation: string;
+      expertSignal: boolean;
+      estimatedMeters?: number;
+      efficiencyRatio?: number;
+    }
+  >,
   score: number,
 ): string {
-  const expertCount = Object.values(spatial).filter((d) => d.expertSignal).length;
-  const noviceCount = Object.values(spatial).filter((d) => !d.expertSignal).length;
+  const expertCount = Object.values(spatial).filter(
+    (d) => d.expertSignal,
+  ).length;
+  const noviceCount = Object.values(spatial).filter(
+    (d) => !d.expertSignal,
+  ).length;
   const overallVerdict =
     score >= 80
       ? "This worker is performing at an expert level."
@@ -250,11 +274,15 @@ async function processEntry(filename: string, force = false): Promise<void> {
 
     for (const intent of seg.implicitIntents) {
       if (intent.spatialIntelligence && !force) {
-        console.log(`  ✓ seg ${seg.segmentIndex} [${intent.category}] already enriched — skipping`);
+        console.log(
+          `  ✓ seg ${seg.segmentIndex} [${intent.category}] already enriched — skipping`,
+        );
         continue;
       }
 
-      console.log(`  → seg ${seg.segmentIndex} [${intent.category}] ${intent.startSec}–${intent.endSec}s`);
+      console.log(
+        `  → seg ${seg.segmentIndex} [${intent.category}] ${intent.startSec}–${intent.endSec}s`,
+      );
 
       let clipPath: string;
       try {
@@ -269,7 +297,9 @@ async function processEntry(filename: string, force = false): Promise<void> {
       const { statSync } = await import("fs");
       const clipStat = statSync(clipPath);
       if (clipStat.size < 10_000) {
-        console.warn(`    ⚠ clip is ${clipStat.size} bytes — timestamp likely past video end, skipping`);
+        console.warn(
+          `    ⚠ clip is ${clipStat.size} bytes — timestamp likely past video end, skipping`,
+        );
         continue;
       }
 
@@ -283,7 +313,16 @@ async function processEntry(filename: string, force = false): Promise<void> {
         intent.category,
         intent.taskSet,
         intent.reasoning,
-        spatial as Record<string, { label: string; observation: string; expertSignal: boolean; estimatedMeters?: number; efficiencyRatio?: number }>,
+        spatial as Record<
+          string,
+          {
+            label: string;
+            observation: string;
+            expertSignal: boolean;
+            estimatedMeters?: number;
+            efficiencyRatio?: number;
+          }
+        >,
         intent.score,
       );
       console.log(`    reasoning: ${newReasoning.slice(0, 80)}…`);
@@ -326,7 +365,9 @@ const toProcess = filterArg
   ? entryFiles.filter((f) => f.includes(filterArg))
   : entryFiles;
 
-console.log(`\nBackfilling ${toProcess.length} entries with spatial intelligence...\n`);
+console.log(
+  `\nBackfilling ${toProcess.length} entries with spatial intelligence...\n`,
+);
 
 for (const file of toProcess) {
   await processEntry(file, force);

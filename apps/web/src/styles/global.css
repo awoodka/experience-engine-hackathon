@@ -365,11 +365,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.5) 0%,
-    transparent 60%
-  );
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, transparent 60%);
   z-index: 1;
   transition: background 0.5s ease;
 }
@@ -547,7 +543,8 @@
   position: relative;
   z-index: 1;
   max-width: 90vw;
-  animation: video-modal-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+  animation: video-modal-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s
+    both;
 }
 
 .video-modal__close {

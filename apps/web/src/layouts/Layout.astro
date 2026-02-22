@@ -9,8 +9,16 @@ const { title } = Astro.props;
 const pathname = Astro.url.pathname;
 
 const navLinks = [
-  { href: "/", label: "Chat", active: pathname === "/" || pathname.startsWith("/chat") },
-  { href: "/tutorials", label: "Tutorials", active: pathname.startsWith("/tutorials") },
+  {
+    href: "/",
+    label: "Chat",
+    active: pathname === "/" || pathname.startsWith("/chat"),
+  },
+  {
+    href: "/tutorials",
+    label: "Tutorials",
+    active: pathname.startsWith("/tutorials"),
+  },
   { href: "/review", label: "Review", active: pathname.startsWith("/review") },
 ];
 ---
@@ -35,14 +43,19 @@ const navLinks = [
       <nav class="ee-nav">
         <a href="/" class="ee-nav__brand">EE</a>
         <div class="ee-nav__links">
-          {navLinks.map(({ href, label, active }) => (
-            <a
-              href={href}
-              class:list={["ee-nav__link", { "ee-nav__link--active": active }]}
-            >
-              {label}
-            </a>
-          ))}
+          {
+            navLinks.map(({ href, label, active }) => (
+              <a
+                href={href}
+                class:list={[
+                  "ee-nav__link",
+                  { "ee-nav__link--active": active },
+                ]}
+              >
+                {label}
+              </a>
+            ))
+          }
         </div>
       </nav>
       <main class="ee-main">

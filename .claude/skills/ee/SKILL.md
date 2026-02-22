@@ -182,6 +182,11 @@ echo '<json>' | ./ee index-write behavioral entries/<videoName>.json
 
 Source all narration from `reasoning` + `spatialIntelligence` fields in the behavioral index. Never invent narration.
 
+**Focus on the WHY, not the WHAT.** Tutorials must teach tacit knowledge — the invisible reasoning an experienced worker carries that no manual captures. If a sentence could appear in a product manual or safety handbook, it's not good enough. Every line should sound like a 30-year veteran explaining the thinking behind the action.
+
+- **Describe the why:** Why the body moves that way. Why the positioning matters. Why the timing is what it is. What environmental cue the worker missed or read correctly.
+- **Never just describe what happened:** The viewer can see the video. They need to understand the reasoning they can't see.
+
 Open with the category signal, stated plainly:
 
 | Category     | Opening                                 |
@@ -193,12 +198,14 @@ Open with the category signal, stated plainly:
 
 Cite specific spatial numbers — meters, ratios, body angles. "He stayed 0.6m back" not "he was far away."
 
-Expert contrast is mandatory after every mistake. State the physical pattern an expert uses.
+Expert contrast is mandatory after every mistake. State the physical pattern an expert uses — and explain **why** that pattern works.
 
 Write like a foreman, not a document:
 
-- **Bad:** "The worker's task sequence reveals hesitation caused by over-application of material."
-- **Good:** "This is the hesitation — he over-loads the trowel, then scrapes back the excess before the block can go down."
+- **Bad:** "He over-loads the trowel, then scrapes back the excess." _(This is just what happened — a manual could say this.)_
+- **Good:** "He over-loads the trowel because he's compensating for the wind drying the mortar before the block goes down — an experienced mason reads the weather and adjusts his pace, not his load."
+- **Bad:** "The worker failed to check the alignment before installing." _(Obvious from the video.)_
+- **Good:** "He skips the check because he's trusting the last guy's work — but the frame shifted when they bolted it. An experienced hand knows the load path changes after fastening, so you always re-check."
 
 ### Structure
 
@@ -210,11 +217,11 @@ Tutorials must be **≤ 40 seconds**. Duration formulas:
 
 Each behavioral moment follows five steps:
 
-1. **narrate** — Name the problem. From `reasoning` + spatial observations.
+1. **narrate** — Name the problem AND the invisible reason behind it. Not just what went wrong — why the worker's instinct led them there. From `reasoning` + spatial observations.
 2. **play** — Verified clip showing the behavior. Must have `description` field (≤15 words, visual).
 3. **pause** — Freeze on key frame. Red bounding box on the failure. Caption ≤8 words.
-4. **root-cause** — Why experts don't do this. What they do instead. Cite spatial pattern.
-5. **takeaway** — One concrete physical action the viewer can try tomorrow.
+4. **root-cause** — The tacit knowledge the worker is missing. What environmental cue, body mechanic, or situational read does an expert make that this worker didn't? Cite spatial pattern. This is NOT "they should have done X" — it's "an expert reads Y, which tells them Z, so they do X."
+5. **takeaway** — One concrete physical cue or mental check the viewer can use tomorrow. Not a rule from a manual — a habit that only experience teaches.
 
 A 40-second tutorial typically has 4–7 steps total.
 

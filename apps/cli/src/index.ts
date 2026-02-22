@@ -15,6 +15,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   "index-create": (await import("./commands/index-create.js")).default,
   "tutorial-render": (await import("./commands/tutorial-render.js")).default,
   "tutorial-review": (await import("./commands/tutorial-review.js")).default,
+  "tutorial-assess": (await import("./commands/tutorial-assess.js")).default,
   present: (await import("./commands/present.js")).default,
 };
 
@@ -56,6 +57,7 @@ if (!command || command === "--help" || command === "-h") {
   Tutorial Tools:
     ee tutorial-render <slug>                         Render tutorial to MP4
     ee tutorial-review <slug>                         Review rendered video against config.json
+    ee tutorial-assess <slug>                         Assess whether the tutorial teaches experience
   `);
   process.exit(0);
 }

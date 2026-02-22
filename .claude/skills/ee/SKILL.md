@@ -765,7 +765,7 @@ something specific, not to linger.
    every step. Returns structured JSON: `{ pass, steps: [{stepIndex, stepType, ok, issue}], summary }`.
 
    If `pass` is false or any step has `ok: false`, fix those steps in config.json,
-   re-run `bun check`, re-render, and re-review. Do NOT present until `pass` is true.
+   re-run `bun check`, re-render, and re-review. Do NOT move to step 6 until `pass` is true.
 
 6. **Verify every bounding box individually** — For each pause step with a
    `region`, extract the annotated frame and confirm the box is right:
@@ -777,13 +777,28 @@ something specific, not to linger.
 
    Fix → `bun check` → re-render → re-review if the box is wrong.
 
-7. **Fix and re-render** — Update config.json, re-run `bun check`, re-render,
-   and re-review from step 5. Do NOT present until the review is clean.
+7. **Assess whether the tutorial teaches experience** — This is MANDATORY. Run:
 
-8. **Present** — ONLY after a clean review:
+   ```bash
+   ./ee tutorial-assess <slug>
+   ```
+
+   This evaluates the video against five criteria — failure recognition, expert mental
+   model, bounding box clarity, actionable takeaway, and overall effectiveness. Returns:
+   `{ teachesExperience, issues, suggestions, summary }`.
+
+   If `teachesExperience` is false, read each `issue` and apply the corresponding
+   `suggestion` directly to `config.json`. These will be specific rewrites — apply
+   them exactly. Then re-run `bun check`, re-render, re-review (step 5), and
+   re-assess (this step). Do NOT present until `teachesExperience` is true.
+
+8. **Fix and re-render** — Update config.json, re-run `bun check`, re-render,
+   and loop from step 5. Do NOT present until both review and assess are clean.
+
+9. **Present** — ONLY after both a clean review and a clean assess:
    `./ee present data/tutorials/<slug>/video.mp4`
 
-**NEVER present a video without a clean review against the config.json.**
+**NEVER present a video without a clean review AND a clean assess.**
 
 ### Common Mistakes to Avoid
 
@@ -801,6 +816,7 @@ something specific, not to linger.
 - Writing pause descriptions that don't say exactly what the bounding box is pointing at
 - Guessing bounding box coordinates without verifying them on a frame
 - Presenting the video immediately after rendering without reviewing it
+- Presenting after tutorial-review passes without also running tutorial-assess — a technically correct video can still fail to teach experience
 - Forgetting to run `bun check` after modifying config.json
 - Using jargon or formal language instead of plain, conversational words
 

@@ -189,16 +189,36 @@ export default async function scriptRender(args: string[]): Promise<void> {
 
     switch (step.type) {
       case "narrate":
-        await renderTextCard(segmentPath, step.text, "narrate", step.durationSec);
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "narrate",
+          step.durationSec,
+        );
         break;
       case "takeaway":
-        await renderTextCard(segmentPath, step.text, "takeaway", step.durationSec);
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "takeaway",
+          step.durationSec,
+        );
         break;
       case "root-cause":
-        await renderTextCard(segmentPath, step.text, "root-cause", step.durationSec);
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "root-cause",
+          step.durationSec,
+        );
         break;
       case "impact":
-        await renderTextCard(segmentPath, step.text, "impact", step.durationSec);
+        await renderTextCard(
+          segmentPath,
+          step.text,
+          "impact",
+          step.durationSec,
+        );
         break;
       case "play":
         await renderPlayStep(segmentPath, step);
@@ -321,15 +341,21 @@ async function renderTextCard(
   const duration =
     overrideDuration ?? Math.min(8, Math.max(2, Math.ceil(text.length / 20)));
   const bgColor =
-    style === "takeaway" ? "0x1a1a2e" :
-    style === "root-cause" ? "0x2d1a00" :
-    style === "impact" ? "0x0a1f0a" :
-    "0x212121";
+    style === "takeaway"
+      ? "0xe65100"
+      : style === "root-cause"
+        ? "0xb71c1c"
+        : style === "impact"
+          ? "0x00695c"
+          : "0x1a237e";
   const fontColor =
-    style === "takeaway" ? "0x4fc3f7" :
-    style === "root-cause" ? "0xffb74d" :
-    style === "impact" ? "0xa5d6a7" :
-    "white";
+    style === "takeaway"
+      ? "white"
+      : style === "root-cause"
+        ? "0xffee58"
+        : style === "impact"
+          ? "0xe0f7fa"
+          : "white";
   const fontSize = style === "takeaway" ? 34 : 30;
   const lines = wrapLines(text, 50);
   const textFilters = centeredTextFilters(lines, fontSize, fontColor);

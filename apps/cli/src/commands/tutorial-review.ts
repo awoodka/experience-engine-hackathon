@@ -31,7 +31,14 @@ const REVIEW_SCHEMA = {
           stepIndex: { type: "number", description: "0-based step index" },
           stepType: {
             type: "string",
-            enum: ["narrate", "play", "pause", "takeaway", "root-cause", "impact"],
+            enum: [
+              "narrate",
+              "play",
+              "pause",
+              "takeaway",
+              "root-cause",
+              "impact",
+            ],
           },
           ok: {
             type: "boolean",
@@ -65,16 +72,20 @@ ${configJson}
 
 Evaluate every step in the order they appear in the "steps" array (0-indexed).
 
-NARRATE / TAKEAWAY steps:
+NARRATE steps (dark navy blue background, white text):
 - The text shown on screen must match the "text" field exactly.
-- Check that it is readable and well-centered on a solid background.
+- Check that it is readable and well-centered on a dark navy blue background.
 
-ROOT-CAUSE steps (amber/orange background):
-- The text must match the "text" field exactly and be legible on a dark amber background.
+TAKEAWAY steps (deep orange background, white text):
+- The text shown on screen must match the "text" field exactly.
+- Check that it is readable and well-centered on a deep orange background.
+
+ROOT-CAUSE steps (dark red background, yellow text):
+- The text must match the "text" field exactly and be legible on a dark red background with yellow text.
 - This card explains WHY the problem happened — verify the text is analytical, not descriptive.
 
-IMPACT steps (dark green background):
-- The text must match the "text" field exactly and be legible on a dark green background.
+IMPACT steps (dark teal background, light cyan text):
+- The text must match the "text" field exactly and be legible on a dark teal background with light cyan text.
 - This card quantifies the cost of the behavior — verify numbers or concrete estimates are present and legible.
 
 PLAY steps:

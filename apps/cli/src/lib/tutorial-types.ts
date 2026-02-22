@@ -55,7 +55,13 @@ export interface ImpactStep {
   durationSec?: number;
 }
 
-export type Step = NarrateStep | PlayStep | PauseStep | TakeawayStep | RootCauseStep | ImpactStep;
+export type Step =
+  | NarrateStep
+  | PlayStep
+  | PauseStep
+  | TakeawayStep
+  | RootCauseStep
+  | ImpactStep;
 
 export interface TutorialScript {
   title: string;

@@ -572,6 +572,7 @@ not invented. If you find yourself writing narration that doesn't trace back to 
 reasoning string, stop and go back to the index.
 
 **Translate reasoning into two cards per behavioral moment:**
+
 - Card 1: what this worker did and why it hurts (from the reasoning's problem clause)
 - Card 2: what an expert does instead (from the reasoning's implication — make it explicit)
 
@@ -613,10 +614,13 @@ something specific, not to linger.
    exactly what happened and what it means about skill level.
 
    Read the behavioral entry files for the relevant videos:
+
    ```
    ./ee index-read behavioral entries/<video>.json
    ```
+
    Or search by category:
+
    ```
    ./ee index-read behavioral --search "hesitation"
    ./ee index-read behavioral --search "attention"
@@ -640,10 +644,12 @@ something specific, not to linger.
    Every low-score reasoning contains this contrast — read it carefully and make it explicit.
 
    **Example** — hesitation intent (score: 60), reasoning:
+
    > "Worker paused to re-check block cell alignment before threading over tall rebar — slight
    > struggle suggests uncertainty in sequencing the block around the steel, slowing the lay cycle."
 
    Maps directly to:
+
    ```json
    { "type": "narrate", "text": "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
    { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing to re-check block cell alignment before threading over rebar." },
@@ -653,10 +659,12 @@ something specific, not to linger.
    Then a single `takeaway` at the end — one concrete action the viewer can do tomorrow.
 
    Verify every clip before writing the config:
+
    ```
    ./ee video-clip data/videos/<video> --start <intent.startSec> --end <intent.endSec>
    ./ee video-analyze <clip-path> "Does this clip show: <reasoning>? Answer yes or no."
    ```
+
    If no, try the parent segment boundaries or pick a different intent.
 
 2. **Draft config.json** — Write the tutorial script. Calculate the total

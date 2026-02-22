@@ -778,12 +778,26 @@ export default async function scriptRender(args: string[]): Promise<void> {
   const destThumbPath = resolve(tutorialDir, "thumb.jpg");
   const metaPath = resolve(tutorialDir, "meta.json");
 
-  // Extract thumbnail (first frame of rendered video)
+  // Extract thumbnail from the first play step (not the narrate title card)
+  let thumbSeek = 0;
+  {
+    let elapsed = 0;
+    for (let si = 0; si < script.steps.length; si++) {
+      const s = script.steps[si];
+      const dur = stepDurations[si];
+      const xfade = si > 0 ? XFADE_DURATION : 0;
+      if (s.type === "play") {
+        thumbSeek = Math.max(0, elapsed - xfade + 0.5);
+        break;
+      }
+      elapsed += dur;
+    }
+  }
   const thumbArgs = [
     "ffmpeg",
     "-y",
     "-ss",
-    "0",
+    thumbSeek.toFixed(2),
     "-i",
     outputPath,
     "-frames:v",

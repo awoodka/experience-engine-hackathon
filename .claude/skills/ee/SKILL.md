@@ -105,6 +105,23 @@ re-sorted by score across indices.
 
 Reads stdin and writes to a file in the index. Returns `{ok, path, bytesWritten}`.
 
+### `./ee video-verify <file> "<activity>" [--start <sec>] [--end <sec>]`
+
+Pre-checks whether a specific visible activity is clearly the main subject of a clip.
+Use this **before writing any play step** into a tutorial config.
+
+- `<activity>` must be a SHORT visual description (≤15 words) of what should be on screen.
+  Write what the viewer sees, not a behavioral analysis.
+- If `--start`/`--end` are given, a clip of up to 15 seconds is extracted and analyzed.
+- Returns `{ found, confidence, reason }`.
+- Only use a clip where `found: true` and `confidence` is `"high"` or `"medium"`.
+- If `found: false` or `confidence: "low"`, discard the clip and try a different timestamp.
+
+```bash
+./ee video-verify data/videos/07_production_mp.mp4 "Worker trimming wall frame with angle grinder" --start 752 --end 762
+# → { "found": true, "confidence": "high", "reason": "Worker is clearly operating an angle grinder on a metal frame member." }
+```
+
 ### `./ee present <path>`
 
 Shows an image or video to the user in the chat. Call this **only when you are
@@ -584,30 +601,47 @@ onto the video frame, and then verifies it actually highlights the right thing.
 
 ### Writing Style
 
+**The goal is to teach experience.** Every tutorial should feel like a senior tradesperson
+watching over someone's shoulder and pointing out exactly what they see — not an AI
+summarizing a report. Write for a person who is watching the clip you just showed them.
+
 **The reasoning field is the script.** Every narrate card must come from an `implicitIntent`
 `reasoning` in the behavioral index — not from your own summary, not from the `activity` field,
 not invented. If you find yourself writing narration that doesn't trace back to a specific
 reasoning string, stop and go back to the index.
 
-**Translate reasoning into two cards per behavioral moment:**
+**Open with the category signal, stated plainly.** The first narrate card should name the
+problem directly in terms the worker understands:
 
-- Card 1: what this worker did and why it hurts (from the reasoning's problem clause)
-- Card 2: what an expert does instead (from the reasoning's implication — make it explicit)
+| Category     | Opening phrase                          |
+| ------------ | --------------------------------------- |
+| hesitation   | "This is the hesitation — ..."          |
+| attention    | "This is the attention gap — ..."       |
+| smoothness   | "This is where the rhythm breaks — ..." |
+| coordination | "This is the coordination gap — ..."    |
 
-**Be literal.** Name the action, the object, the consequence. No metaphors.
+Then finish the sentence with what literally happens and why it costs time. Don't summarize — describe.
 
-- **Bad:** "He hesitates before placing the block."
-- **Good:** "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle."
+- **Bad (AI-sounding):** "The worker's task sequence reveals hesitation caused by over-application of material."
+- **Good (direct):** "This is the hesitation — he over-loads the trowel, then scrapes back the excess before the block can go down."
+
+**After every play clip, freeze on the key moment.** Insert a `pause` step immediately after
+each `play` step. Use it to freeze on the exact frame where the problem is visible and draw a
+red bounding box around it. The pause caption should name the failure in 8 words or fewer:
+
+- "Scraping back excess — this step shouldn't exist"
+- "Checking the same block twice — the first read was enough"
+- "Watching instead of positioning — the sync gap"
 
 **The expert contrast is mandatory.** Every behavioral moment shown must be followed by a
-narrate card explaining what an experienced tradesperson does differently and why. This is
-the point of the tutorial — not just showing what went wrong, but teaching what right looks like.
+`root-cause` card explaining why experienced workers don't do this and what they do instead.
+This is the point of the tutorial — teaching what right looks like, not just showing what went wrong.
 
-- **Bad:** shows the hesitation clip, then takeaway "Don't hesitate."
-- **Good:** shows the clip, then narrate "An expert sequences the block around the rebar before lifting — the move is planned before it starts, so there's no stop."
+- **Bad:** "An expert performs this task more efficiently."
+- **Good:** "Experienced masons gauge the load before the trowel touches the wall — one motion, not two."
 
 **Write for a person, not a document.** Say "he can't find his tape measure," not "suboptimal
-tool-retrieval workflow." Each sentence should earn its place.
+tool-retrieval workflow." Each sentence should earn its place. No passive voice. No hedging.
 
 ### Duration Limit
 
@@ -654,16 +688,16 @@ something specific, not to linger.
    internal filtering only. Describe behavior qualitatively — the reasoning field
    already does this.
 
-   **Structure each behavioral moment as three steps:**
+   **Structure each behavioral moment as five steps:**
+   1. **Narrate** — open with the category signal ("This is the hesitation — ..."), then describe what literally happens and why it costs time. From the reasoning's problem clause.
 
-   **Narrate** — what this worker did wrong, drawn directly from the reasoning's first clause.
-   State the behavior and why it's a problem.
+   2. **Play** — the verified clip. Shows the viewer exactly what was just described.
 
-   **Play** — the clip at `intent.startSec` / `intent.endSec`. This shows the viewer exactly
-   what was described. No timestamps other than these — never guess.
+   3. **Pause** — freeze on the key frame. Red bounding box on the specific moment of failure. Caption names the failure in ≤8 words. Get the bounding box from Gemini via `video-frame` + `video-analyze`, then verify it with `video-frame --region`.
 
-   **Narrate** — what an expert does instead. This comes from the implication in the reasoning.
-   Every low-score reasoning contains this contrast — read it carefully and make it explicit.
+   4. **Root-cause** — why experienced workers don't do this, and what they do instead. From the reasoning's implication. Include at least one spatial observation (distance, body orientation, or trajectory) from `spatialIntelligence`.
+
+   5. **Takeaway** — one sentence, one concrete action the viewer can do tomorrow.
 
    **Example** — hesitation intent (score: 60), reasoning:
 
@@ -673,21 +707,30 @@ something specific, not to linger.
    Maps directly to:
 
    ```json
-   { "type": "narrate", "text": "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
-   { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing to re-check block cell alignment before threading over rebar." },
-   { "type": "narrate", "text": "An expert sequences the block around the rebar before lifting it. The move is planned before it starts — no stop needed." }
+   { "type": "narrate", "text": "This is the hesitation — he stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
+   { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing mid-placement to re-check block cell alignment over rebar." },
+   { "type": "pause", "video": "01_production_masonry.mp4", "timestampSec": 366, "description": "Stopping to re-check — the move should be planned before the lift", "region": { "x": 0.3, "y": 0.4, "w": 0.4, "h": 0.35 } },
+   { "type": "root-cause", "text": "Experienced masons sequence the block around the rebar before lifting it. The move is planned before it starts — no stop needed." },
+   { "type": "takeaway", "text": "Plan the block path before the lift. No stops mid-placement." }
    ```
 
-   Then a single `takeaway` at the end — one concrete action the viewer can do tomorrow.
+   **Verify every clip before writing the config — this step is mandatory.**
 
-   Verify every clip before writing the config:
+   Write a SHORT visual description (≤15 words) of what should be visible in the clip.
+   This is NOT the reasoning text. It is what a viewer would see:
+   - Bad: "The transition from communication to a risky task shows a significant failure in planning that results in hazardous manual rework" (behavioral analysis — invisible)
+   - Good: "Worker stops mid-lift and re-approaches the wall frame with a grinder" (visual — observable)
+
+   Then verify:
 
    ```
-   ./ee video-clip data/videos/<video> --start <intent.startSec> --end <intent.endSec>
-   ./ee video-analyze <clip-path> "Does this clip show: <reasoning>? Answer yes or no."
+   ./ee video-verify data/videos/<video> "<short visual description>" --start <intent.startSec> --end <intent.endSec>
    ```
 
-   If no, try the parent segment boundaries or pick a different intent.
+   - `found: true` with `confidence: "high"` or `"medium"` → use this clip. Use your short visual description as the `description` field in the play step.
+   - `found: false` OR `confidence: "low"` → discard this timestamp. Try the parent segment's `startSec`/`endSec`, or pick a different intent entirely.
+
+   Do NOT include a clip that fails verification. Do NOT write a play step with a `description` that hasn't been confirmed by `video-verify`.
 
 2. **Draft config.json** — Write the tutorial script. Calculate the total
    duration before saving. If it exceeds 40 seconds, cut steps or shorten text.
@@ -745,6 +788,11 @@ something specific, not to linger.
 ### Common Mistakes to Avoid
 
 - **Printing score numbers in chat, narration, or video text** — never say "score of 55" or "hesitation score 50." Describe behavior qualitatively instead.
+- **Writing the `description` field in a play step as the full behavioral reasoning** — the `description` must be ≤15 words describing what the viewer literally sees, e.g. "Worker pausing to re-check block alignment before threading rebar." The reasoning text is for your own understanding — it is a behavioral analysis, not a visual description, and Gemini cannot verify it against the clip.
+- **Skipping `video-verify` before writing a play step** — always run `video-verify` first. If it returns `found: false` or `confidence: "low"`, throw away that timestamp and find another.
+- **Omitting the pause step** — every play step must be followed by a pause step with a verified bounding box. No exceptions.
+- **Writing AI-sounding narration** — avoid "the worker's task sequence reveals..." or "this behavioral intent demonstrates...". Open with the category signal ("This is the hesitation — ...") and describe what literally happens.
+- **Guessing bounding box coordinates** — always use `video-frame` + `video-analyze` to get the region, then verify with `video-frame --region` before writing to config.
 - Writing narration that doesn't come from a `reasoning` field in the behavioral index
 - Omitting the expert contrast after showing a mistake — every bad behavior needs a "here's what an expert does instead"
 - Writing too many steps and exceeding the 40-second limit

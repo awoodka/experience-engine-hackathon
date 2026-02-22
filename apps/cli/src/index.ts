@@ -8,6 +8,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   "video-clip": (await import("./commands/video-clip.js")).default,
   "video-analyze": (await import("./commands/video-analyze.js")).default,
   "video-frame": (await import("./commands/video-frame.js")).default,
+  "video-verify": (await import("./commands/video-verify.js")).default,
   "index-list": (await import("./commands/index-list.js")).default,
   "index-read": (await import("./commands/index-read.js")).default,
   "index-write": (await import("./commands/index-write.js")).default,
@@ -30,6 +31,8 @@ if (!command || command === "--help" || command === "-h") {
     ee video-frame <file> <seconds> [--region x,y,w,h] Extract a single frame
     ee video-frame --index <idx> --file <path> --entry <n>
                                                         Frame from index entry
+    ee video-verify <file> "<activity>" [--start <sec>] [--end <sec>]
+                                                        Verify a clip shows an activity
 
   Index Tools:
     ee index-list                                     List all indices and files

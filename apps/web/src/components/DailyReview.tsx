@@ -34,90 +34,91 @@ const IMPROVEMENTS: Improvement[] = [
   {
     id: "imp-1",
     category: "hesitation",
-    score: 32,
-    activity: "Searching for parts in unlabeled storage bins",
+    score: 45,
+    activity: "Spreading mortar on existing course",
     reasoning:
-      "30s hunting for fittings that should have been identifiable at a glance.",
-    segment: "Seg 11",
+      "Over-loads the trowel, then scrapes back the excess before the block can go down \u2014 a correction step that shouldn\u2019t exist.",
+    segment: "Seg 1",
     tutorial: {
-      id: "stage-your-tools",
-      title: "Stage Your Tools First",
+      id: "mortar-overload",
+      title: "Mortar Overload",
       description:
-        "Every trip back to the cart during assembly is time you didn\u2019t need to lose.",
-      thumbnailPath: "/data/tutorials/stage-your-tools/thumb.jpg",
-      videoPath: "/data/tutorials/stage-your-tools/video.mp4",
-      durationSec: 20,
+        "Stop scraping back excess mortar \u2014 gauge your load before the trowel touches the wall.",
+      thumbnailPath: "/data/tutorials/mortar-overload/thumb.jpg",
+      videoPath: "/data/tutorials/mortar-overload/video.mp4",
+      durationSec: 34,
     },
   },
   {
     id: "imp-2",
-    category: "attention",
-    score: 28,
-    activity: "Overhead ProPress fired without seating verification",
+    category: "hesitation",
+    score: 50,
+    activity: "Leveling and plumbing the course",
     reasoning:
-      "No fitting seating mark check before triggering the press cycle.",
-    segment: "Seg 20",
+      "Taps the block, checks the level, taps again \u2014 can\u2019t commit to what the first check already showed.",
+    segment: "Seg 3",
     tutorial: {
-      id: "check-first",
-      title: "Check Before You Act",
+      id: "block-level-loop",
+      title: "Block Level Loop",
       description:
-        "Verifying a press fitting before committing an irreversible joint.",
-      thumbnailPath: "/data/tutorials/check-first/thumb.jpg",
-      videoPath: "/data/tutorials/check-first/video.mp4",
-      durationSec: 17,
+        "Trust your first level read \u2014 over-adjusting wastes the time you saved.",
+      thumbnailPath: "/data/tutorials/block-level-loop/thumb.jpg",
+      videoPath: "/data/tutorials/block-level-loop/video.mp4",
+      durationSec: 35,
     },
   },
   {
     id: "imp-3",
     category: "hesitation",
-    score: 41,
-    activity: "Re-measuring manifold dimensions after task break",
-    reasoning: "Initial markup was not trusted or clearly documented.",
-    segment: "Seg 17",
+    score: 50,
+    activity: "Block adjustment and joint sealing",
+    reasoning:
+      "Block placed, error spotted, loops back to fix it \u2014 the alignment check came too late.",
+    segment: "Seg 8",
     tutorial: {
-      id: "know-your-next-move",
-      title: "Know Your Next Move",
+      id: "block-adjust-loop",
+      title: "Block Adjust Loop",
       description:
-        "The biggest time losses come from not knowing what comes next.",
-      thumbnailPath: "/data/tutorials/know-your-next-move/thumb.jpg",
-      videoPath: "/data/tutorials/know-your-next-move/video.mp4",
-      durationSec: 17,
+        "Sight the line before you set \u2014 correction after placement costs more than prevention.",
+      thumbnailPath: "/data/tutorials/block-adjust-loop/thumb.jpg",
+      videoPath: "/data/tutorials/block-adjust-loop/video.mp4",
+      durationSec: 35,
     },
   },
   {
     id: "imp-4",
     category: "smoothness",
-    score: 38,
-    activity: "Wasted motion during scrap copper sorting",
+    score: 50,
+    activity: "Installing joint reinforcement mesh",
     reasoning:
-      "No designated scrap collection point, causing unnecessary back-and-forth.",
-    segment: "Seg 5",
+      "Carries the mesh to the wall, then pauses before committing \u2014 a micro-stop that breaks the rhythm of the course.",
+    segment: "Seg 15",
     tutorial: {
-      id: "stop-and-redo",
-      title: "Stop and Redo",
+      id: "mesh-idle-gap",
+      title: "Mesh Idle Gap",
       description:
-        "Poor pre-planning forced rework and added time without progress.",
-      thumbnailPath: "/data/tutorials/stop-and-redo/thumb.jpg",
-      videoPath: "/data/tutorials/stop-and-redo/video.mp4",
-      durationSec: 18,
+        "Pre-stage the mesh so the carry flows directly into placement \u2014 no pause.",
+      thumbnailPath: "/data/tutorials/mesh-idle-gap/thumb.jpg",
+      videoPath: "/data/tutorials/mesh-idle-gap/video.mp4",
+      durationSec: 40,
     },
   },
   {
     id: "imp-5",
-    category: "attention",
-    score: 35,
-    activity: "Unit lifted without rough opening measurement",
+    category: "coordination",
+    score: 55,
+    activity: "Preparing next course section",
     reasoning:
-      "No dimension check before the 3-person lift \u2014 4 min of grinder rework.",
-    segment: "Seg 8",
+      "Watches the crane instead of moving into guide position \u2014 still getting set when the block arrived.",
+    segment: "Seg 5",
     tutorial: {
-      id: "rough-opening-check",
-      title: "Measure Before You Lift",
+      id: "crane-wait-placement",
+      title: "Crane Wait Placement",
       description:
-        "The cost of skipping a rough opening check before a heavy lift.",
-      thumbnailPath: "/data/tutorials/rough-opening-check/thumb.jpg",
-      videoPath: "/data/tutorials/rough-opening-check/video.mp4",
-      durationSec: 15,
+        "Pre-position before the crane arrives \u2014 don\u2019t wait for it to come to you.",
+      thumbnailPath: "/data/tutorials/crane-wait-placement/thumb.jpg",
+      videoPath: "/data/tutorials/crane-wait-placement/video.mp4",
+      durationSec: 38,
     },
   },
 ];
@@ -140,7 +141,7 @@ function buildSummary(improvements: Improvement[]): string {
 
   if (topCategory === "hesitation") {
     parts.push(
-      "Hesitation was the most frequent pattern \u2014 time lost searching for materials and re-verifying work after breaks suggests stronger pre-staging and markup habits would help.",
+      "Hesitation was the most frequent pattern \u2014 repeated check-adjust loops and excess mortar correction cycles suggest stronger pre-staging and commit habits would save significant time per course.",
     );
   } else if (topCategory === "attention") {
     parts.push(
@@ -152,15 +153,21 @@ function buildSummary(improvements: Improvement[]): string {
     );
   }
 
-  if (counts["attention"] && topCategory !== "attention") {
+  if (counts["smoothness"] && topCategory !== "smoothness") {
     parts.push(
-      "Skipped checks before critical steps also surfaced as a recurring theme.",
+      "A smoothness gap also appeared \u2014 an idle micro-pause before mesh placement adds unnecessary stop time to an otherwise fluid sequence.",
     );
   }
 
-  if (counts["smoothness"] && topCategory !== "smoothness") {
+  if (counts["coordination"] && topCategory !== "coordination") {
     parts.push(
-      "Workspace layout contributed to unnecessary movement during material handling.",
+      "A coordination gap also appeared \u2014 waiting for the crane to arrive before moving to guide position costs time that pre-positioning would eliminate.",
+    );
+  }
+
+  if (counts["attention"] && topCategory !== "attention") {
+    parts.push(
+      "Skipped checks before critical steps also surfaced as a recurring theme.",
     );
   }
 

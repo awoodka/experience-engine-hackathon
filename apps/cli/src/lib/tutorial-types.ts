@@ -24,6 +24,7 @@ export interface PlayStep {
   label?: string;
   description?: string; // What this clip is intended to show — not rendered, used for LM review
   durationSec?: number;
+  slowMo?: number; // Playback speed multiplier (0.5 = half speed). Output duration = clip / slowMo.
 }
 
 export interface PauseStep {

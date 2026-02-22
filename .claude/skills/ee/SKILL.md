@@ -5,928 +5,276 @@ description: Query and manage Experience Engine video behavioral indices. Use wh
 allowed-tools: Bash(./ee *), Read, Write
 ---
 
-# Experience Engine CLI Tools
+# Experience Engine CLI
 
-The `./ee` CLI provides composable primitives for analyzing construction-site video
-and managing behavioral indices. All commands output JSON to stdout.
+The `./ee` CLI provides composable tools for analyzing construction-site video and
+managing behavioral indices. All commands output JSON to stdout.
 
 ## Data Layout
 
 ```
 data/
-  index/
-    <name>/
-      schema.json                     # Entry shape (JSON Schema) — read before writing
-      entries/<video>.json            # One file per source video, array of timestamped items
-  tutorials/<slug>/config.json         # Agent-generated video tutorial scripts
-  tutorials/<slug>/video.mp4           # Rendered tutorial video
-  tutorials/<slug>/thumb.jpg           # Thumbnail
-  tutorials/<slug>/meta.json           # Metadata (includes configHash)
-  videos/                             # Source video files
-  tmp/                                # Temporary files (frames, clips)
+  index/<name>/
+    schema.json                  # Entry shape — read before writing
+    entries/<video>.json         # One file per source video
+  tutorials/<slug>/
+    config.json                  # Tutorial script
+    video.mp4 / thumb.jpg / meta.json
+  videos/                        # Source video files
 ```
 
-Every index has a `schema.json` that defines the entry structure. Read it before
-generating entries. Every entry file is a JSON array of timestamped items, one
-file per source video.
+## CLI Reference
 
-## Tools
+### Video Tools
 
-### `./ee video-list`
+**`./ee video-list`** — Lists videos in `data/videos/`. Returns `[{name, path, sizeBytes}]`.
 
-Lists video files in `data/videos/`. Returns `[{name, path, sizeBytes}]`.
+**`./ee video-clip <file> --start <sec> [--end <sec>] [--region x,y,w,h]`** — Extracts an MP4 clip to `data/tmp/clips/`. Optional `--region` draws a red bounding box (normalized 0–1). Not shown to user — use `present` when ready.
 
-### `./ee video-clip <file> --start <sec> [--end <sec>] [--region x,y,w,h]`
+**`./ee video-analyze <file> "<prompt>" [--schema '<json-schema>']`** — Sends video/clip to Gemini. Without `--schema`: raw text. With `--schema`: structured JSON output. To analyze a specific section, extract a clip first.
 
-Extracts a clip from a video and saves it as an MP4 in `data/tmp/clips/`.
-Returns `{"type": "clip", "path": "data/tmp/clips/..."}`. The clip is **not**
-shown to the user automatically — use `./ee present <path>` when you're ready.
+**`./ee video-frame <file> <seconds> [--region x,y,w,h]`** — Extracts a JPEG frame. Optional `--region` draws a red bounding box. Entry mode: `./ee video-frame --index <index> --file <subpath> --entry <n>`. Not shown to user — use `present` when ready.
 
-- The MP4 file persists, so you can pass it to `video-analyze` or other commands.
-- Optional `--region` draws a red bounding box (normalized 0–1 coordinates).
+**`./ee video-verify <file> "<activity>" [--start <sec>] [--end <sec>]`** — Checks whether a visible activity is the main subject of a clip. Returns `{found, confidence, reason}`. The `<activity>` must be a SHORT visual description (≤15 words) of what the viewer literally sees — not a behavioral analysis. Only use clips where `found: true` and confidence is `"high"` or `"medium"`.
 
-### `./ee video-analyze <file> "<prompt>" [--model <id>] [--schema '<json-schema>']`
+**`./ee present <path>`** — Shows an image or video to the user in chat. Call ONLY when ready to present a final result — not during intermediate exploration.
 
-Sends a video (or clip) to Gemini with your prompt.
+### Index Tools
 
-- **Without `--schema`**: returns raw text.
-- **With `--schema`**: enforces structured output via Gemini's JSON mode.
-- To analyze a specific section, extract a clip first with `video-clip` and pass
-  the resulting MP4 file to this command.
+**`./ee index-list`** — Lists all indices and their entry files.
 
-### `./ee video-frame <file> <seconds> [--region x,y,w,h]`
+**`./ee index-create <name>`** — Scaffolds `data/index/<name>/entries/`.
 
-Extracts a JPEG frame at the given timestamp. Optionally draws a red bounding
-box when `--region` is provided (normalized 0–1 coordinates).
-Returns `{"type": "frame", "path": "...", seconds, region?}`. The frame is
-**not** shown to the user automatically — use `./ee present <path>` when ready.
+**`./ee index-read <index> <path>`** — Reads a file from an index.
 
-**Entry mode**: Pull video, timestamp, and region from an index entry:
+**`./ee index-read <index> --search "<query>" [--field <name> --value <val>] [--after <sec> --before <sec>] [--top N]`** — Full-text search across an index (BM25). Returns `[{file, path, score, data}]`.
 
-```
-./ee video-frame --index <index> --file <subpath> --entry <n>
-```
+**`./ee index-read <index> --dump [--raw] [--stats] [--field <name> --value <val>]`** — All entries. `--raw` strips wrappers, `--stats` gives aggregate statistics.
 
-### `./ee index-list`
+**Cross-index:** `./ee index-read all --dump` or `./ee index-read safety,productivity --search "fall protection"`.
 
-Lists all indices and their files. Returns `[{index, files: [...]}]`.
+**`./ee index-write <index> <path>`** — Reads stdin, writes to index file. Returns `{ok, path, bytesWritten}`.
 
-### `./ee index-create <name>`
+### Tutorial Tools
 
-Scaffolds a new index directory at `data/index/<name>/entries/`.
+**`./ee tutorial-render <slug>`** — Renders `config.json` → `video.mp4` + `thumb.jpg` + `meta.json`. Fails if tutorial exceeds 40 seconds. Not shown to user — use `present` when ready.
 
-### `./ee index-read <index> <path>`
+**`./ee tutorial-review <slug>`** — Sends config + rendered video to Gemini. Verifies every step matches its intent. Returns `{pass, steps: [{stepIndex, stepType, ok, issue}], summary}`. Fix any `ok: false` steps, re-render, re-review.
 
-Reads a file from an index. Returns raw contents.
+**`./ee tutorial-assess <slug>`** — Evaluates whether the tutorial teaches experience (not just shows a mistake). Returns `{teachesExperience, issues, suggestions, summary}`. Fix issues, re-render, re-review, re-assess until `teachesExperience: true`.
 
-### `./ee index-read <index> --search "<query>" [--field <name> --value <val>] [--after <sec> --before <sec>] [--top N]`
-
-Full-text search across all JSON files in an index (BM25 ranking).
-Returns `[{file, path, score, data}]`.
-
-### `./ee index-read <index> --dump [--raw] [--stats] [--field <name> --value <val>] [--after <sec> --before <sec>] [--top N]`
-
-Returns all entries from the index. Can be combined with field and time filters.
-
-- `--raw` strips the `{file, path, score, data}` wrapper and outputs flat data.
-- `--stats` outputs aggregate statistics (field distributions, numeric min/max/avg/median).
-
-### Cross-index queries
-
-```
-./ee index-read all --dump [--raw] [--stats]
-./ee index-read safety,productivity --search "fall protection"
-```
-
-Query multiple indices at once. Results are tagged with an `index` field and
-re-sorted by score across indices.
-
-### `./ee index-write <index> <path>`
-
-Reads stdin and writes to a file in the index. Returns `{ok, path, bytesWritten}`.
-
-### `./ee video-verify <file> "<activity>" [--start <sec>] [--end <sec>]`
-
-Pre-checks whether a specific visible activity is clearly the main subject of a clip.
-Use this **before writing any play step** into a tutorial config.
-
-- `<activity>` must be a SHORT visual description (≤15 words) of what should be on screen.
-  Write what the viewer sees, not a behavioral analysis.
-- If `--start`/`--end` are given, a clip of up to 15 seconds is extracted and analyzed.
-- Returns `{ found, confidence, reason }`.
-- Only use a clip where `found: true` and `confidence` is `"high"` or `"medium"`.
-- If `found: false` or `confidence: "low"`, discard the clip and try a different timestamp.
-
-```bash
-./ee video-verify data/videos/07_production_mp.mp4 "Worker trimming wall frame with angle grinder" --start 752 --end 762
-# → { "found": true, "confidence": "high", "reason": "Worker is clearly operating an angle grinder on a metal frame member." }
-```
-
-### `./ee present <path>`
-
-Shows an image or video to the user in the chat. Call this **only when you are
-ready to present** a result — not during intermediate exploration. The command
-detects the media type from the file extension and emits the format the frontend
-renders inline.
-
-```
-./ee present data/tmp/frames/abc_62.0.jpg    # shows image
-./ee present data/tmp/clips/clip_xyz.mp4     # shows video
-./ee present data/tmp/my_tutorial.mp4        # shows rendered tutorial
-```
-
-### `./ee tutorial-render <slug>`
-
-Renders `data/tutorials/<slug>/config.json` into an MP4. Outputs:
-
-- `data/tutorials/<slug>/video.mp4` — the rendered video
-- `data/tutorials/<slug>/thumb.jpg` — thumbnail (first frame)
-- `data/tutorials/<slug>/meta.json` — metadata for the web UI
-
-Returns `{"type": "clip", "path": "data/tutorials/<slug>/video.mp4"}`.
-The video is **not** shown automatically — use `./ee present <path>` when ready.
-
-### `./ee tutorial-review <slug>`
-
-Reads `config.json` and `video.mp4` for the given slug, then asks Gemini to
-verify every step in the rendered video against its intent.
-
-Returns structured JSON:
-
-```json
-{
-  "pass": true,
-  "steps": [
-    { "stepIndex": 0, "stepType": "narrate", "ok": true, "issue": "" },
-    {
-      "stepIndex": 1,
-      "stepType": "play",
-      "ok": false,
-      "issue": "Clip shows wrong area of site."
-    }
-  ],
-  "summary": "Step 1 shows the wrong clip. All other steps are correct."
-}
-```
-
-Fix any `ok: false` steps in config.json, re-render, and re-review until `pass` is true.
+---
 
 ## Behavioral Index
 
-The `behavioral` index contains **agentic behavioral analysis** per video —
-generated by Claude reading construction timelines and analyzing the source video
-for spatial signals. Each entry file covers one video and is structured as:
+The `behavioral` index contains agentic behavioral analysis per video. Structure:
 
 ```
 video
  └─ segments[]
      ├─ segmentIndex, startSec, endSec, activity
-     ├─ taskTypeSequence   — ordered action labels, e.g. ["carry","check","install"]
-     └─ implicitIntents[]  — detected behaviour patterns (can be empty)
-         ├─ category       — "hesitation" | "coordination" | "attention" | "smoothness"
-         ├─ taskSet        — sub-sequence that triggered it, e.g. ["carry","check","carry"]
-         ├─ startSec / endSec  — exact video timestamps
-         ├─ features       — named numeric values, e.g. { toolSwitchCount: 2 }
-         ├─ score          — 0–100 (100 = expert-like)
-         ├─ reasoning      — 3+ sentence explanation mixing behavioral + spatial observations
-         └─ spatialIntelligence  — spatial signals extracted from video for this window
-             ├─ bodyOrientation      { label, observation }
-             ├─ distanceBeforeAction { label, estimatedMeters, observation }
-             └─ trajectoryEfficiency { label, efficiencyRatio, observation }
+     ├─ taskTypeSequence   — ordered labels, e.g. ["carry","check","install"]
+     └─ implicitIntents[]  — detected behavior patterns (can be empty)
+         ├─ category       — hesitation | coordination | attention | smoothness
+         ├─ taskSet        — sub-sequence that triggered it
+         ├─ startSec / endSec
+         ├─ features       — named numeric values
+         ├─ score          — 0–100 (internal only — never expose to user)
+         ├─ reasoning      — 3+ sentences mixing behavioral + spatial observations
+         └─ spatialIntelligence
+             ├─ bodyOrientation      { label, observation, expertSignal }
+             ├─ distanceBeforeAction { label, estimatedMeters, observation, expertSignal }
+             └─ trajectoryEfficiency { label, efficiencyRatio, observation, expertSignal }
 ```
 
-Empty `implicitIntents: []` means no clear behavioural signal was detected for
-that segment — nothing is force-fit.
+Empty `implicitIntents: []` means no signal — nothing is force-fit.
 
-The four intent categories:
+### Intent Categories
 
 | Category       | What it captures                                             |
 | -------------- | ------------------------------------------------------------ |
 | `hesitation`   | Uncertainty / rework — carry→check→carry, repeated same task |
 | `coordination` | Hand-offs, waiting on partner, sync events                   |
-| `attention`    | Deliberate check-before-act (verify→install, inspect→risky)  |
-| `smoothness`   | Timing disruptions — micro-stops (<5 s), erratic pacing      |
+| `attention`    | Deliberate check-before-act — verify→install, inspect→risky  |
+| `smoothness`   | Timing disruptions — micro-stops, erratic pacing             |
 
-The shared task-type vocabulary lives at `data/index/behavioral/task-vocab.json`.
-The spatial intelligence vocabulary lives at `data/index/behavioral/spatial-vocab.json`.
+Task-type vocabulary: `data/index/behavioral/task-vocab.json`.
+Spatial dimension labels: `data/index/behavioral/spatial-vocab.json`.
 
-### Spatial Intelligence — Three Dimensions
+### Querying
 
-Each `spatialIntelligence` block captures three orthogonal physical signals:
+**Never expose raw score numbers to the user.** Scores are for sorting and filtering internally. Describe behavior qualitatively — the `reasoning` field already does this.
 
-**1. Body Orientation** — posture and facing direction before/during action.
-Labels from `spatial-vocab.json → bodyOrientation`. Examples:
+When answering questions about worker behavior:
 
-- `face_target_before_act` — turned to face work object before initiating
-- `square_up_before_lift` — squared hips/shoulders to load before lifting
-- `retreat_for_clearance` — stepped back to create safety clearance
-- `overhead_extension` — arms raised above shoulders for ceiling-level work
-- `angled_away_from_target` — off-axis body position during precision task
-
-**2. Worker-Object Distance Before Action** — how close the worker got before
-committing to the action. Labels from `spatial-vocab.json → distanceBeforeAction`.
-Estimated in meters. Examples:
-
-- `close_gap_before_cut` — < 0.3m from cut surface before grinder/torch
-- `reposition_until_comfortable` — multiple stance adjustments before committing
-- `overreach_no_reposition` — acted at full arm extension, reducing control
-- `consistent_working_distance` — stable, repeatable proximity throughout
-
-**3. Trajectory Efficiency** — path quality from origin to work point.
-Ratio = straight-line distance / actual path length (1.0 = perfectly direct).
-Labels from `spatial-vocab.json → trajectoryEfficiency`. Examples:
-
-- `direct_path` — efficiency > 0.85, minimal wasted movement
-- `search_pattern` — efficiency < 0.40, no clear target path
-- `backtrack_detected` — moved toward target, reversed, re-approached
-- `stationary_pivot` — achieved reposition by rotating in place
-
-### How to extract spatial intelligence from video
-
-For each intent window, extract the clip and send to Gemini with the spatial prompt:
-
-```bash
-./ee video-clip data/<videoName> --start <startSec> --end <endSec>
-./ee video-analyze <clip.mp4> "<spatial-prompt>" --schema '<spatial-schema>'
-```
-
-**Spatial analysis prompt template:**
-
-```
-Analyze this construction video clip for spatial worker behavior.
-For body orientation: describe how the worker positioned their body relative to the work object.
-  Did they face the target before acting? Square up before a lift? Retreat for clearance?
-  Pick the single best label: face_target_before_act | square_up_before_lift | lean_in_for_precision |
-  angled_away_from_target | overhead_extension | crouch_low_position | scan_before_move |
-  pivot_to_partner | brace_against_surface | retreat_for_clearance
-For distance before action: estimate how close (in meters) the worker was to the work surface
-  at the moment they initiated the main action. Pick the best label:
-  close_gap_before_cut | close_gap_before_install | close_gap_before_braze |
-  maintain_safe_distance | overreach_no_reposition | reposition_until_comfortable |
-  consistent_working_distance | variable_working_distance
-For trajectory efficiency: observe the worker's movement path. Estimate the ratio of
-  straight-line distance to actual path length (0.0–1.0). Pick the best label:
-  direct_path | minor_deviation | significant_deviation | search_pattern |
-  stationary_pivot | backtrack_detected | parallel_approach
-Return a one-sentence observation for each dimension describing exactly what you see.
-```
-
-**Spatial analysis JSON schema** (pass as `--schema`):
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "bodyOrientation": {
-      "type": "object",
-      "properties": {
-        "label": { "type": "string" },
-        "observation": { "type": "string" }
-      },
-      "required": ["label", "observation"]
-    },
-    "distanceBeforeAction": {
-      "type": "object",
-      "properties": {
-        "label": { "type": "string" },
-        "estimatedMeters": { "type": "number" },
-        "observation": { "type": "string" }
-      },
-      "required": ["label", "estimatedMeters", "observation"]
-    },
-    "trajectoryEfficiency": {
-      "type": "object",
-      "properties": {
-        "label": { "type": "string" },
-        "efficiencyRatio": { "type": "number" },
-        "observation": { "type": "string" }
-      },
-      "required": ["label", "efficiencyRatio", "observation"]
-    }
-  },
-  "required": [
-    "bodyOrientation",
-    "distanceBeforeAction",
-    "trajectoryEfficiency"
-  ]
-}
-```
-
-### Querying the behavioral index
-
-**Search for a behaviour pattern:**
-
-```
-./ee index-read behavioral --search "hesitation"
-./ee index-read behavioral --search "carry check carry"
-./ee index-read behavioral --search "tool switch rework"
-```
-
-**Read a full video entry:**
-
-```
-./ee index-read behavioral entries/05_production_mp.json
-```
-
-**List all behavioral entry files:**
-
-```
-./ee index-list
-```
-
-### Answering user questions from behavioral data
-
-**NEVER expose raw score numbers to the user.** Scores (0–100) are internal ranking
-tools — use them to sort, filter, and compare, but never write "score of 55" or
-"hesitation score 50" in chat messages, narration, or video text. Instead, describe
-what the score means in plain language: "significant hesitation," "expert-level
-attention," "smooth and fluid," "struggled with coordination." The behavioral
-`reasoning` field already does this — lean on it.
-
-When a user asks about worker skill, hesitation, attention, coordination, smoothness,
-body position, distance, or movement efficiency — follow this pattern:
-
-1. **Search** for relevant behaviour: `./ee index-read behavioral --search "<topic>"`
-2. **Read the full entry** for videos with strong signal: `./ee index-read behavioral entries/<name>.json`
-3. **Locate the intent instances** — filter for the relevant `category`
-4. **Quote the `reasoning` field** directly — it's 3+ sentences mixing behavioral + spatial observations
-5. **Cite `spatialIntelligence`** observations (body orientation, distance, trajectory) for physical evidence
-6. **Cite timestamps** (`startSec`–`endSec`) and `taskSet` for concrete evidence
-7. **Rank performance** using scores internally, but describe results in qualitative terms (not numbers)
-
-**Example flow** — "Which workers showed the most hesitation?":
-
-1. `./ee index-read behavioral --search "hesitation"`
-2. Read top entries, collect all `implicitIntents` where `category === "hesitation"`
-3. Sort by `score` ascending (low score = more hesitation)
-4. Cite `reasoning` and timestamps for each instance
-
-**Example flow** — "Show me good check-before-act behaviour":
-
-1. `./ee index-read behavioral --search "attention verification check"`
-2. Find instances where `category === "attention"` and `score >= 80`
-3. Note `startSec`/`endSec`, optionally extract a clip for the user
-
-**To teach workers what to improve**, combine behavioral reasoning with
-construction timeline data:
-
-1. Find low-scoring intent instances from the behavioral index
-2. Read their `reasoning` — this is your training script
-3. Optionally extract the video clip: `./ee video-clip data/videos/<file> --start <startSec> --end <endSec>`
-4. Present the clip alongside the reasoning
+1. **Search** — `./ee index-read behavioral --search "<topic>"`
+2. **Read full entry** — `./ee index-read behavioral entries/<name>.json`
+3. **Filter by category** — find relevant `implicitIntents`
+4. **Quote `reasoning`** — it is 3+ sentences mixing behavioral + spatial observations
+5. **Cite `spatialIntelligence`** — body orientation, distance (meters), trajectory (ratio)
+6. **Cite timestamps** — `startSec`–`endSec` and `taskSet` for concrete evidence
+7. **Rank by score internally** — but describe results qualitatively, never numerically
 
 ---
 
 ## Generating the Behavioral Index
 
-When the user asks you to **run behavioral analysis**, **generate the behavioral index**,
-or **analyze worker behaviour** across videos — you do this work directly. No script,
-no separate pipeline. You read the timelines, reason over them, analyze the video clips
-for spatial signals, and write the output.
+When asked to run behavioral analysis, you do this directly — no scripts. Read timelines, reason over them, analyze video clips for spatial signals, write output.
 
-### Step 1 — Read the shared vocabularies
+### Step 1 — Read vocabularies
 
 ```
 Read data/index/behavioral/task-vocab.json
 Read data/index/behavioral/spatial-vocab.json
 ```
 
-If task-vocab doesn't exist yet, start with this seed vocab:
-
-```json
-{
-  "carry": "Transport, move, retrieve, or hand off materials or tools",
-  "check": "Inspect, verify, measure, or align something before acting",
-  "communicate": "Verbal or gestural communication between workers",
-  "idle": "Pause, wait, or stand without active task engagement",
-  "install": "Join, press, fit, insert, or permanently fix something into position",
-  "navigate": "Walk, reposition, or move through the work site",
-  "organize": "Sort, store, clean up, or arrange materials and tools",
-  "risky": "Perform a high-risk precision action: cut, drill, lift, press, strike"
-}
-```
-
-### Step 2 — Find all timeline files
+### Step 2 — Find timeline files
 
 ```
 ls data/.ee/indices/construction/timelines/
 ```
 
-Each file is `<hash>.timeline.json`.
+### Step 3 — For each timeline, generate a behavioral entry
 
-### Step 3 — For each timeline file, generate a behavioral entry
+Read the timeline. For each segment, reason through:
 
-Read the timeline:
+**A. Task type sequence** — Break the activity into ordered task-type labels from the vocab. Only add new types if genuinely needed; update `task-vocab.json` when you do.
 
-```
-Read data/.ee/indices/construction/timelines/<hash>.timeline.json
-```
+**B. Implicit intent detection** — Scan for sub-sequences that reveal:
 
-Then for each segment in `timeline.segments`, reason through four stages:
+- **hesitation**: carry→check→carry, install→check→install, repeated retrieval
+- **coordination**: carry→idle→install across workers, communicate→carry→install
+- **attention**: check→risky, check→install, inspection before precision work
+- **smoothness**: segments under 5s, high duration variance, erratic pacing
 
-**A. Task type sequence**
-Break the segment's `activity` description into an ordered list of task-type labels
-from the vocab. Use existing types where they fit. Only add new types if genuinely
-needed — coin new types sparingly and add them to `task-vocab.json` when you do.
+Leave `implicitIntents: []` if no genuine signal. Do NOT force-fit.
 
-Example: `"Retrieving ProPress tool from gang box"` → `["navigate", "carry"]`
-Example: `"Aligning copper pipe manifold before pressing"` → `["check", "carry", "check", "install"]`
+**C. Features** — Named numeric values per intent (e.g. `reworkCount`, `handoffGapSec`, `verificationCount`, `microStopCount`).
 
-**B. Implicit intent detection**
-Scan the task type sequence for sub-sequences that genuinely reveal one of:
-
-- **hesitation** — uncertainty/rework: `carry→check→carry`, `install→check→install`,
-  repeated retrieval of the same item, second-guessing before committing
-- **coordination** — hand-offs/waiting: `carry→idle→install` across workers,
-  `communicate→carry→install`, waiting gaps during multi-worker segments
-- **attention** — deliberate verification: `check→risky`, `check→install`,
-  inspection before a precision or dangerous action
-- **smoothness** — timing disruptions: segments under 5 s (micro-stops),
-  high duration variance within a sequence, erratic start-stop pacing
-
-Leave `implicitIntents: []` if no genuine signal is present. Do NOT force-fit.
-
-**C. Features**
-For each detected intent instance, compute named numeric features. Examples:
-
-- hesitation: `toolSwitchCount`, `reworkCount`, `pauseBeforeResumeSec`
-- coordination: `handoffGapSec`, `waitTimeSec`, `communicationCount`
-- attention: `verificationCount`, `checkToActRatioSec`, `missedCheckCount`
-- smoothness: `microStopCount`, `shortSegmentCount`, `durationVarianceSec`
-
-**D. Spatial intelligence extraction**
-For each detected intent instance, extract a clip and run Gemini spatial analysis:
+**D. Spatial intelligence** — For each intent, extract a clip and run Gemini spatial analysis. The canonical prompt and schema are in `scripts/backfill-spatial.ts` (constants `SPATIAL_PROMPT` and `SPATIAL_SCHEMA`). Read that file for the full prompt. It evaluates three dimensions: body orientation, distance before action, trajectory efficiency — each classified as expert or novice signal.
 
 ```bash
-./ee video-clip data/<videoName> --start <intentStartSec> --end <intentEndSec>
-./ee video-analyze <clip.mp4> "<spatial-prompt from above>" --schema '<spatial-schema from above>'
+./ee video-clip data/<video> --start <startSec> --end <endSec>
+./ee video-analyze <clip.mp4> "<spatial-prompt>" --schema '<spatial-schema>'
 ```
 
-Parse the result into the `spatialIntelligence` block. If Gemini cannot determine a
-dimension from the clip, omit that key — never fabricate spatial data.
+Never fabricate spatial data. If Gemini can't determine a dimension, omit it.
 
-**E. Score + reasoning**
-Score each instance 0–100 (100 = expert, fluent; 0 = very poor). Write **3 or more**
-plain-English sentences that integrate both behavioral and spatial observations:
+**E. Score + reasoning** — Score 0–100 (100 = expert). Write 3+ sentences:
 
-- Sentence 1: what the task-type sequence tells you (behavioral implicit intent)
-- Sentence 2: what the body / distance / trajectory data adds (spatial intelligence)
-- Sentence 3+: combined interpretation — what skill level this implies, what the
-  worker should do differently, or why the behavior makes sense given the context
+1. What the task-type sequence reveals (behavioral)
+2. What body/distance/trajectory data adds (spatial) — cite specific numbers
+3. Combined interpretation — skill level, what to change, why the behavior makes sense
 
-**Do not write generic spatial filler.** Every spatial sentence must cite a specific
-observation from the `spatialIntelligence` block (e.g. "approached to within 0.2m",
-"pivoted 90° to face the joint", "took a 0.61-efficiency search path").
-
-### Step 4 — Build and write the output JSON
-
-Derive the filename from the video name (strip extension, add `.json`):
+### Step 4 — Write output
 
 ```
 echo '<json>' | ./ee index-write behavioral entries/<videoName>.json
 ```
 
-Output format:
-
-```json
-{
-  "videoId": "<hash>",
-  "videoName": "<source.name from timeline>",
-  "generatedAt": "<ISO timestamp>",
-  "segments": [
-    {
-      "segmentIndex": 0,
-      "startSec": 0,
-      "endSec": 45,
-      "activity": "...",
-      "taskTypeSequence": ["navigate", "carry"],
-      "implicitIntents": []
-    },
-    {
-      "segmentIndex": 3,
-      "startSec": 135,
-      "endSec": 185,
-      "activity": "...",
-      "taskTypeSequence": ["carry", "check", "carry", "install"],
-      "implicitIntents": [
-        {
-          "category": "hesitation",
-          "taskSet": ["carry", "check", "carry"],
-          "startSec": 140,
-          "endSec": 168,
-          "features": { "reworkCount": 1, "pauseBeforeResumeSec": 12 },
-          "score": 55,
-          "reasoning": "Worker retrieved the fitting, paused to re-inspect alignment, then retrieved it again — the carry→check→carry sequence signals uncertainty about which component to use before committing to the press. Spatially, the worker approached to within 0.3m for the inspection but then stepped back ~0.6m before re-retrieving, adding unnecessary movement and reset time. A more experienced worker would verify component selection before leaving the staging area, eliminating the double-retrieval entirely.",
-          "spatialIntelligence": {
-            "bodyOrientation": {
-              "label": "lean_in_for_precision",
-              "observation": "Worker bent torso forward to within ~0.2m of the fitting during the mid-sequence inspection check."
-            },
-            "distanceBeforeAction": {
-              "label": "reposition_until_comfortable",
-              "estimatedMeters": 0.3,
-              "observation": "Worker made two stance adjustments before committing to the press, closing to ~0.3m from the fitting on final approach."
-            },
-            "trajectoryEfficiency": {
-              "label": "backtrack_detected",
-              "efficiencyRatio": 0.52,
-              "observation": "Worker moved toward the staging area, reversed back to the joint, then returned to staging — total path was nearly twice the direct distance."
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Step 5 — Update the task vocab
-
-After processing all videos, write the (possibly extended) vocab back:
-
-```
-Write data/index/behavioral/task-vocab.json
-```
-
-### Tips
-
-- Process videos one at a time, keeping the vocab updated between each.
-- You can do a subset: "analyze the masonry videos only" is valid.
-- To re-analyze a single video, just overwrite that entry file.
+### Step 5 — Update task vocab if extended
 
 ---
 
-## Schema-Driven Scoring
-
-Each index can declare a `"scoring"` key in its `schema.json` to enable
-domain-aware ranking. When searching or dumping, results are sorted by a blend
-of text relevance and domain score. Examples:
-
-- `safety`: ranked by `severity` (1-10)
-- `productivity`: ranked by `impact` (Low/Medium/High)
-- `behavioral`: ranked by `overallScore` (0-100)
-- `construction`: no scoring (text-only ranking)
-
-## Workflow
-
-1. **Read the schema** before writing to any index: `./ee index-read <index> schema.json`
-2. **Search indices** to find relevant moments: `./ee index-read <index> --search "<query>"`
-3. **Extract clips and frames** for your own analysis — these are silent and won't
-   clutter the user's chat:
-   - `./ee video-clip data/videos/<file> --start <sec> --end <sec>`
-   - `./ee video-frame data/videos/<file> <seconds>`
-4. **Analyze** with Gemini: `./ee video-analyze data/tmp/clips/<clip>.mp4 "<prompt>"`
-5. **Present results** when you're ready: `./ee present <path>`
-   Only show the user the final, curated media — not every intermediate frame.
-6. **Update index data** if something is wrong: read → modify → write back via `index-write`
-
-## Verifying Bounding Boxes
-
-To verify that a bounding box is accurate, use `video-frame` to render it onto
-a still frame, then send that annotated frame back to Gemini with `video-analyze`:
-
-1. Extract the frame with the box drawn on it:
-   `./ee video-frame data/videos/<file> <seconds> --region x,y,w,h`
-2. Read the resulting JPEG to check it visually yourself.
-3. To have Gemini confirm, send the annotated frame (or a short clip around that
-   timestamp) back through `video-analyze` and ask whether the box correctly
-   highlights the described activity or hazard.
-
-This lets you close the loop — the agent generates a bounding box, renders it
-onto the video frame, and then verifies it actually highlights the right thing.
-
 ## Tutorial Creation
 
-**CRITICAL: Follow every step below when creating a tutorial. Do NOT skip any step.**
+### Voice
 
-### Writing Style
+Source all narration from `reasoning` + `spatialIntelligence` fields in the behavioral index. Never invent narration.
 
-**The goal is to teach experience.** Every tutorial should feel like a senior tradesperson
-watching over someone's shoulder and pointing out exactly what they see — not an AI
-summarizing a report. Write for a person who is watching the clip you just showed them.
+Open with the category signal, stated plainly:
 
-**The reasoning and spatialIntelligence fields together are the script.** Every narrate card
-must come from an `implicitIntent` in the behavioral index — specifically its `reasoning` text
-and `spatialIntelligence` observations. Do not invent narration. Do not paraphrase generically.
-
-Each `implicitIntent` gives you two complementary layers:
-
-- **`reasoning`** — the behavioral story: what the task sequence reveals about skill level, and
-  what an expert would do instead
-- **`spatialIntelligence`** — the physical evidence: exactly how the body was positioned, how
-  close they got, how efficiently they moved through space
-
-Use both. The reasoning tells you *what* happened and *why* it matters. The spatial observations
-tell you *how it looked physically* — and those concrete details are what make the narration
-specific enough to be useful.
-
-**Three spatial fields, three types of detail to cite:**
-
-- `bodyOrientation.observation` — how the worker positioned their body relative to the work.
-  Cite this when describing setup: "he leaned in to 0.2m", "squared up before the lift",
-  "angled away from the joint".
-- `distanceBeforeAction.estimatedMeters + observation` — how close they got before committing.
-  Cite the number: "stayed 0.6m back", "closed to 0.2m", "overreached at arm's length".
-- `trajectoryEfficiency.efficiencyRatio + observation` — quality of the movement path.
-  Cite the ratio: "0.52 efficiency — path was nearly twice the direct distance", "ratio 1.0,
-  stationary pivot, zero wasted steps".
-
-**Open with the category signal, stated plainly.** The first narrate card should name the
-problem directly in terms the worker understands:
-
-| Category     | Opening phrase                          |
+| Category     | Opening                                 |
 | ------------ | --------------------------------------- |
 | hesitation   | "This is the hesitation — ..."          |
 | attention    | "This is the attention gap — ..."       |
 | smoothness   | "This is where the rhythm breaks — ..." |
 | coordination | "This is the coordination gap — ..."    |
 
-Then finish the sentence with what literally happens and why it costs time. Weave in the spatial
-observation that physically explains it (e.g., "stepped back 0.6m instead of staying close").
+Cite specific spatial numbers — meters, ratios, body angles. "He stayed 0.6m back" not "he was far away."
 
-- **Bad (AI-sounding):** "The worker's task sequence reveals hesitation caused by over-application of material."
-- **Good (direct):** "This is the hesitation — he over-loads the trowel, then scrapes back the excess before the block can go down."
+Expert contrast is mandatory after every mistake. State the physical pattern an expert uses.
 
-**After every play clip, freeze on the key moment.** Insert a `pause` step immediately after
-each `play` step. Use it to freeze on the exact frame where the problem is visible and draw a
-red bounding box around it. The pause caption should name the failure in 8 words or fewer:
+Write like a foreman, not a document:
 
-- "Scraping back excess — this step shouldn't exist"
-- "Checking the same block twice — the first read was enough"
-- "Watching instead of positioning — the sync gap"
+- **Bad:** "The worker's task sequence reveals hesitation caused by over-application of material."
+- **Good:** "This is the hesitation — he over-loads the trowel, then scrapes back the excess before the block can go down."
 
-**The expert contrast is mandatory.** Every behavioral moment shown must be followed by a
-`root-cause` card explaining why experienced workers don't do this and what they do instead.
-State what the physical pattern looks like when done right (body position, distance, trajectory).
+### Structure
 
-- **Bad:** "An expert performs this task more efficiently."
-- **Good:** "Experienced masons gauge the load before the trowel touches the wall — one motion, not two. They close to 0.2m before install, ratio 0.95."
+Tutorials must be **≤ 40 seconds**. Duration formulas:
 
-**Write for a person, not a document.** Say "he can't find his tape measure," not "suboptimal
-tool-retrieval workflow." Each sentence should earn its place. No passive voice. No hedging.
+- **narrate/takeaway/root-cause/impact**: `min(8, max(2, ceil(text.length / 20)))` seconds
+- **play**: `endSec - startSec` (capped at 40s; divided by `slowMo` if set)
+- **pause**: `min(8, max(3, ceil(description.length / 20)))` seconds
 
-### Duration Limit
+Each behavioral moment follows five steps:
 
-Tutorials MUST be **40 seconds or less** total. The renderer and validator will
-both reject tutorials that exceed this limit. Budget your steps carefully:
+1. **narrate** — Name the problem. From `reasoning` + spatial observations.
+2. **play** — Verified clip showing the behavior. Must have `description` field (≤15 words, visual).
+3. **pause** — Freeze on key frame. Red bounding box on the failure. Caption ≤8 words.
+4. **root-cause** — Why experts don't do this. What they do instead. Cite spatial pattern.
+5. **takeaway** — One concrete physical action the viewer can try tomorrow.
 
-- **narrate/takeaway**: `min(8, max(2, ceil(text.length / 20)))` seconds
-- **play**: `endSec - startSec` (capped at 40s per clip)
-- **pause**: `min(4, max(2, ceil(description.length / 30)))` seconds — **pauses are short by default (2–4s)**
+A 40-second tutorial typically has 4–7 steps total.
 
-Before writing `config.json`, mentally add up the durations. A 40-second video
-typically has 4–7 steps. Keep narration direct. Keep play clips to 3–8 seconds
-each. Keep pause descriptions to one sentence — pauses are meant to point at
-something specific, not to linger.
+### Workflow
 
-### Using Spatial Intelligence
+**1. Find behavioral moments.** Read behavioral entries for relevant videos. Pick `implicitIntents` with clear signal.
 
-Every `implicitIntent` in the behavioral index has a `spatialIntelligence` block with three dimensions — body orientation, distance before action, and trajectory efficiency. These are physical signals extracted from the video clip. Use them to ground the tutorial in what the viewer can literally observe about how the worker moves.
+```
+./ee index-read behavioral entries/<video>.json
+./ee index-read behavioral --search "hesitation"
+```
 
-**Read and translate — never quote directly.** The raw labels and observations use technical vocabulary that means nothing to a tradesperson. Your job is to translate them into the plainest possible physical description. One sentence, no jargon.
+**2. Verify every clip BEFORE writing config.** Write a SHORT visual description (≤15 words) of what the viewer would literally see. Not behavioral analysis — what is visible on screen.
 
-**Body orientation — plain language:**
+- Bad: "The transition from communication to a risky task shows a significant failure in planning"
+- Good: "Worker stops mid-lift and re-approaches the wall frame with a grinder"
 
-| Label                     | Say instead                                               |
-| ------------------------- | --------------------------------------------------------- |
-| `face_target_before_act`  | "squared up to the wall" / "already facing the work"      |
-| `angled_away_from_target` | "off-axis" / "body turned away from what he's working on" |
-| `lean_in_for_precision`   | "leaning in close" / "bent over the work"                 |
-| `overhead_extension`      | "working with arms overhead"                              |
-| `square_up_before_lift`   | "squared his hips to the load before lifting"             |
-| `retreat_for_clearance`   | "stepped back to make room"                               |
-| `scan_before_move`        | "scanned the area before moving"                          |
+```
+./ee video-verify data/videos/<video> "<short visual description>" --start <sec> --end <sec>
+```
 
-**Distance before action — plain language:**
+If `found: false` or `confidence: "low"` — discard that timestamp, try another.
 
-| Label                          | Say instead                                              |
-| ------------------------------ | -------------------------------------------------------- |
-| `close_gap_before_install`     | "within arm's reach" / "already close enough"            |
-| `overreach_no_reposition`      | "overreaching — stretched too far without repositioning" |
-| `reposition_until_comfortable` | "adjusting his stance to find a comfortable position"    |
-| `consistent_working_distance`  | "steady working distance — same spot throughout"         |
-| `variable_working_distance`    | "inconsistent distance — stepping in and out"            |
-| `maintain_safe_distance`       | "kept a safe distance before committing"                 |
+**3. Verify every bounding box.** Extract the annotated frame, confirm the box highlights the right thing:
 
-Drop the meters estimate unless it genuinely clarifies scale. If you use it, convert: 0.3m ≈ 1 foot, 0.5m ≈ 1.5 feet.
+```
+./ee video-frame data/videos/<file> <seconds> --region x,y,w,h
+./ee video-analyze <frame.jpg> "Does the red box highlight <what description says>?"
+```
 
-**Trajectory efficiency — plain language:**
+**4. Draft config.json.** Add up durations before saving. Must be ≤40 seconds.
 
-| Label                   | Say instead                                     |
-| ----------------------- | ----------------------------------------------- |
-| `direct_path`           | "no wasted steps" / "straight line to the work" |
-| `backtrack_detected`    | "went back the way he came — had to retrace"    |
-| `stationary_pivot`      | "pivots in place, doesn't move his feet"        |
-| `search_pattern`        | "no clear path — searching before committing"   |
-| `minor_deviation`       | "slight detour, mostly direct"                  |
-| `significant_deviation` | "took the long way around"                      |
+Every `play` step needs a `description` — the short visual description from step 2 (confirmed by `video-verify`).
 
-Never mention the `efficiencyRatio` number. Describe the behavior.
+**5. Validate → render → review → assess.** Run in this order, loop until clean:
 
-**When spatial is GOOD but behavior is BAD — isolate the problem:**
-The worker's body mechanics are sound, but the task sequence reveals the failure. Use this to tell the worker exactly what they're doing right and where the actual waste is.
+```bash
+bun check                          # Schema + duration validation
+./ee tutorial-render <slug>        # Render video
+./ee tutorial-review <slug>        # Verify clips match intent
+./ee tutorial-assess <slug>        # Verify it teaches experience
+```
 
-> "He's squared up and within arm's reach — the body mechanics are right. The problem is what he does from there: loads the trowel, scrapes back the excess, loads again."
+Fix any issues. Re-run from `bun check`. Do NOT present until BOTH `tutorial-review` passes AND `tutorial-assess` returns `teachesExperience: true`.
 
-This is more useful than a generic "experienced masons do it in one motion" — it tells the worker their positioning isn't the issue.
+**6. Present.** Only after both checks are clean:
 
-**When spatial is BAD and compounds the behavior — layer it in:**
-The physical mechanics add to the behavioral problem. Use spatial to show that the mistake is costing more than it appears.
-
-> "He's already overreaching by the time he places the block — which means every correction after placement takes twice the effort."
-
-**Where in the tutorial to use it:**
-
-- **Narrate** — Use spatial to set up what the viewer is about to watch physically. Keeps it short: one clause that primes the eye. "He's squared up to the wall — watch what he does next."
-- **Pause caption** — Use only if the spatial observation makes the bounding box more meaningful. "Already within arm's reach — the hesitation is the only extra step."
-- **Root-cause** — Primary home for spatial intelligence. Tie the physical signal to the expert habit: what does a competent worker's body do that this worker's body doesn't (or does, if the spatial is positive)?
-- **Takeaway** — Use if spatial points to a concrete physical action: "Get within arm's reach before you commit to the spread."
-
-**Only use it where it adds something the behavioral reasoning doesn't already say.** If the spatial observation is redundant — if it just restates what the narration already makes obvious — leave it out. One purposeful sentence beats three that dilute the point.
+```
+./ee present data/tutorials/<slug>/video.mp4
+```
 
 ---
 
-### Step-by-Step Workflow
-
-1. **Read behavioral entries — reasoning + spatialIntelligence together are the script**
-
-   Read the behavioral entry files for the relevant videos:
-   ```
-   ./ee index-read behavioral entries/<video>.json
-   ```
-   Or search by category:
-   ```
-   ./ee index-read behavioral --search "hesitation"
-   ./ee index-read behavioral --search "attention"
-   ./ee index-read behavioral --search "coordination"
-   ./ee index-read behavioral --search "smoothness"
-   ```
-
-   For each `implicitIntent`, read **all of these fields**:
-   - `score` — determines whether to frame as expert (≥ 80) or problem (< 65)
-   - `reasoning` — the behavioral story; source of what happened and expert contrast
-   - `spatialIntelligence.bodyOrientation.observation` — how the body was positioned
-   - `spatialIntelligence.distanceBeforeAction.estimatedMeters` + `.observation` — proximity
-   - `spatialIntelligence.trajectoryEfficiency.efficiencyRatio` + `.observation` — path quality
-
-   **Never mention score numbers in narration or video text.** Scores are for your
-   internal filtering only. Describe behavior qualitatively — the reasoning field
-   already does this.
-
-   **Structure each behavioral moment as five steps:**
-   1. **Narrate** — open with the category signal ("This is the hesitation — ..."), then describe what literally happens and why it costs time. From the reasoning's problem clause. Weave in spatial observations (distance, body orientation, trajectory).
-
-   2. **Play** — the verified clip. Shows the viewer exactly what was just described.
-
-   3. **Pause** — freeze on the key frame. Red bounding box on the specific moment of failure. Caption names the failure in ≤8 words. Get the bounding box from Gemini via `video-frame` + `video-analyze`, then verify it with `video-frame --region`.
-
-   4. **Root-cause** — why experienced workers don't do this, and what they do instead. From the reasoning's implication. Read the `spatialIntelligence` block and translate at least one dimension into plain language (see "Using Spatial Intelligence" above). If the spatial signals are positive, use them to isolate where the waste actually lives. If negative, use them to show how the physical mechanics compound the behavioral failure.
-
-   5. **Takeaway** — one sentence, one concrete action the viewer can do tomorrow.
-
-   **Low-score intent (< 65)** — show the mistake. Reasoning explains what went wrong.
-   Spatial observations explain the physical cause. Expert contrast comes from reasoning's
-   implication plus what ideal spatial patterns look like for that action.
-
-   **High-score intent (≥ 80)** — show expertise. Reasoning explains what right looks like.
-   Spatial observations give the physical proof — cite the distance, the ratio, the body position
-   that made it work.
-
-   **Example** — hesitation intent (score: 60), reasoning:
-
-   > "Worker paused to re-check block cell alignment before threading over tall rebar — slight
-   > struggle suggests uncertainty in sequencing the block around the steel, slowing the lay cycle."
-
-   Maps directly to:
-
-   ```json
-   { "type": "narrate", "text": "This is the hesitation — he stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
-   { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing mid-placement to re-check block cell alignment over rebar." },
-   { "type": "pause", "video": "01_production_masonry.mp4", "timestampSec": 366, "description": "Stopping to re-check — the move should be planned before the lift", "region": { "x": 0.3, "y": 0.4, "w": 0.4, "h": 0.35 } },
-   { "type": "root-cause", "text": "Experienced masons sequence the block around the rebar before lifting it. The move is planned before it starts — no stop needed." },
-   { "type": "takeaway", "text": "Plan the block path before the lift. No stops mid-placement." }
-   ```
-
-   **Verify every clip before writing the config — this step is mandatory.**
-
-   Write a SHORT visual description (≤15 words) of what should be visible in the clip.
-   This is NOT the reasoning text. It is what a viewer would see:
-   - Bad: "The transition from communication to a risky task shows a significant failure in planning that results in hazardous manual rework" (behavioral analysis — invisible)
-   - Good: "Worker stops mid-lift and re-approaches the wall frame with a grinder" (visual — observable)
-
-   Then verify:
-   ```
-   ./ee video-verify data/videos/<video> "<short visual description>" --start <intent.startSec> --end <intent.endSec>
-   ```
-
-   - `found: true` with `confidence: "high"` or `"medium"` → use this clip. Use your short visual description as the `description` field in the play step.
-   - `found: false` OR `confidence: "low"` → discard this timestamp. Try the parent segment's `startSec`/`endSec`, or pick a different intent entirely.
-
-   Do NOT include a clip that fails verification. Do NOT write a play step with a `description` that hasn't been confirmed by `video-verify`.
-
-2. **Draft config.json** — Write the tutorial script. Calculate the total
-   duration before saving. If it exceeds 40 seconds, cut steps or shorten text.
-
-   Every `play` step MUST have a `description` field — the reasoning text this clip
-   is meant to illustrate. Not rendered in the video, but used by the review agent.
-
-   ```json
-   {
-     "type": "play",
-     "video": "...",
-     "startSec": 362,
-     "endSec": 370,
-     "label": "Hesitation at rebar",
-     "description": "Worker pausing to re-check block cell alignment before threading over rebar — uncertainty in sequencing slows the lay cycle."
-   }
-   ```
-
-3. **Run `bun check`** — This runs the tutorial validator. Fix any errors before
-   proceeding. Do NOT skip this step.
-
-4. **Render** — Run `./ee tutorial-render <slug>`. It will fail if the tutorial
-   exceeds 20 seconds.
-
-5. **Review the video against the script** — This is MANDATORY. Run:
-
-   ```bash
-   ./ee tutorial-review <slug>
-   ```
-
-   This reads `config.json` and `video.mp4` together and asks Gemini to verify
-   every step. Returns structured JSON: `{ pass, steps: [{stepIndex, stepType, ok, issue}], summary }`.
-
-   If `pass` is false or any step has `ok: false`, fix those steps in config.json,
-   re-run `bun check`, re-render, and re-review. Do NOT move to step 6 until `pass` is true.
-
-6. **Verify every bounding box individually** — For each pause step with a
-   `region`, extract the annotated frame and confirm the box is right:
-
-   ```
-   ./ee video-frame data/videos/<file> <seconds> --region x,y,w,h
-   ./ee video-analyze <frame.jpg> "Does the red box highlight <what description says>? Is it accurate?"
-   ```
-
-   Fix → `bun check` → re-render → re-review if the box is wrong.
-
-7. **Assess whether the tutorial teaches experience** — This is MANDATORY. Run:
-
-   ```bash
-   ./ee tutorial-assess <slug>
-   ```
-
-   This evaluates the video against five criteria — failure recognition, expert mental
-   model, bounding box clarity, actionable takeaway, and overall effectiveness. Returns:
-   `{ teachesExperience, issues, suggestions, summary }`.
-
-   If `teachesExperience` is false, read each `issue` and apply the corresponding
-   `suggestion` directly to `config.json`. These will be specific rewrites — apply
-   them exactly. Then re-run `bun check`, re-render, re-review (step 5), and
-   re-assess (this step). Do NOT present until `teachesExperience` is true.
-
-8. **Fix and re-render** — Update config.json, re-run `bun check`, re-render,
-   and loop from step 5. Do NOT present until both review and assess are clean.
-
-9. **Present** — ONLY after both a clean review and a clean assess:
-   `./ee present data/tutorials/<slug>/video.mp4`
-
-**NEVER present a video without a clean review AND a clean assess.**
-
-### Common Mistakes to Avoid
-
-- **Printing score numbers in chat, narration, or video text** — never say "score of 55" or "hesitation score 50." Describe behavior qualitatively instead.
-- **Writing the `description` field in a play step as the full behavioral reasoning** — the `description` must be ≤15 words describing what the viewer literally sees, e.g. "Worker pausing to re-check block alignment before threading rebar." The reasoning text is for your own understanding — it is a behavioral analysis, not a visual description, and Gemini cannot verify it against the clip.
-- **Skipping `video-verify` before writing a play step** — always run `video-verify` first. If it returns `found: false` or `confidence: "low"`, throw away that timestamp and find another.
-- **Omitting the pause step** — every play step must be followed by a pause step with a verified bounding box. No exceptions.
-- **Writing AI-sounding narration** — avoid "the worker's task sequence reveals..." or "this behavioral intent demonstrates...". Open with the category signal ("This is the hesitation — ...") and describe what literally happens.
-- **Guessing bounding box coordinates** — always use `video-frame` + `video-analyze` to get the region, then verify with `video-frame --region` before writing to config.
-- **Writing narration without reading `spatialIntelligence`** — body position, distance, and trajectory data must be in the cards.
-- **Ignoring the specific numbers** — cite `estimatedMeters` and `efficiencyRatio`. "0.2m" and "ratio 0.95" are more useful than "he was close."
-- Writing narration that doesn't come from a `reasoning` field in the behavioral index
-- Omitting the expert contrast after showing a mistake — state the physical pattern an expert uses, not just the behavioral one
-- Writing too many steps and exceeding the 40-second limit
-- Using long narration text (each sentence costs 2–8 seconds)
-- Using creative metaphors that replace what's literally shown ("archaeological expedition" instead of "he's digging through a messy bin")
-- Writing pause descriptions that don't say exactly what the bounding box is pointing at
-- Guessing bounding box coordinates without verifying them on a frame
-- Presenting the video immediately after rendering without reviewing it
-- Presenting after tutorial-review passes without also running tutorial-assess — a technically correct video can still fail to teach experience
-- Quoting spatial intelligence labels or observations verbatim — always translate into plain physical language before using in any tutorial step
-- Skipping spatial intelligence in the root-cause card — it must appear in at least one step, translated into plain language
-- Using spatial intelligence redundantly — if it just restates what the narration already says, leave it out
-- Forgetting to run `bun check` after modifying config.json
-- Using jargon or formal language instead of plain, conversational words
-
 ## Self-Correction
 
-Don't blindly trust index data. When you read an entry that seems off, verify it:
+Don't blindly trust index data. When something seems off:
 
-1. Pull the frame at that timestamp with `video-frame`.
-2. Look at it — does it match the description?
-3. If it has a bounding box, render it with `--region` and check it highlights
-   the right thing.
-4. If something is wrong, fix it: read the file, correct the entry, write it back.
+1. Pull the frame: `./ee video-frame data/videos/<file> <seconds>`
+2. If it has a bounding box, render it: `--region x,y,w,h`
+3. Check it — does it match the description?
+4. If wrong, fix it: read the file, correct the entry, write it back.
 
-The index is a living document. If you find errors while answering a question,
-fix them on the spot. Don't just report the error — correct it so the next
-query gets better data.
+The index is a living document. If you find errors while answering a question, fix them on the spot.

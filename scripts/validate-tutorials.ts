@@ -26,6 +26,7 @@ const PlayStep = z.object({
   label: z.string().optional(),
   description: z.string().min(1).optional(), // Intent for LM review — not rendered
   durationSec: z.number().positive().optional(),
+  slowMo: z.number().positive().optional(), // Playback speed (0.5 = half speed)
 });
 
 const Region = z.object({
@@ -104,11 +105,11 @@ function computeStepDuration(step: ParsedStep): number {
         step.durationSec ??
         Math.min(8, Math.max(2, Math.ceil(step.text.length / 20)))
       );
-    case "play":
-      return (
-        step.durationSec ??
-        Math.max(1, Math.min(step.endSec - step.startSec, 40))
-      );
+    case "play": {
+      if (step.durationSec) return step.durationSec;
+      const clipDur = Math.max(1, Math.min(step.endSec - step.startSec, 40));
+      return step.slowMo ? clipDur / step.slowMo : clipDur;
+    }
     case "pause":
       return (
         step.durationSec ??

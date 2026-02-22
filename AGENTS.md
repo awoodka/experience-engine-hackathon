@@ -1,59 +1,35 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Structure
 
-This repository is a Bun + Turborepo monorepo.
+Bun + Turborepo monorepo.
 
-- `apps/api`: Hono API for chat streaming (`/api/chat`, health on port `7892`).
-- `apps/cli`: `ee` CLI for video analysis, indexing, and search.
-- `apps/web`: Astro + React frontend (dev server on `7891`, proxies `/api` to `7892`).
-- `scripts/sync.ts`: team data sync/upload flow via secret GitHub Gist.
+- `apps/api`: Hono API for chat streaming (port 7892).
+- `apps/cli`: `ee` CLI — video analysis, indexing, search, tutorial rendering.
+- `apps/web`: Astro + React frontend (port 7891, proxies `/api` → 7892).
 - `data/videos/`: source video files.
-- `data/index/`: behavioral indices (queryable by `./ee` CLI). Each index has `entries/<video>.json`.
-- `data/tutorials/`: per-tutorial directories, each containing `config.json`, `video.mp4`, `thumb.jpg`, `meta.json`.
-- `data/tmp/`: temporary files (extracted frames, etc.).
-- `packages/`: reserved for shared packages (currently empty).
+- `data/index/`: behavioral indices. Each index has `schema.json` and `entries/<video>.json`.
+- `data/tutorials/`: per-tutorial dirs — `config.json`, `video.mp4`, `thumb.jpg`, `meta.json`.
 
-## Build, Test, and Development Commands
+## Commands
 
-Run from repo root unless noted.
+- `bun install` — install dependencies.
+- `bun run dev` — run all dev servers.
+- `bun run build` — build all workspaces.
+- `bun run check` — format + lint + validate tutorials and indices. **Run after every code change.**
+- `./ee --help` — CLI command reference.
+- `bun run data-pull` / `bun run data-push` — sync `data/` via gh CLI.
 
-- `bun install`: install workspace dependencies.
-- `bun run dev`: run all app dev servers through Turbo.
-- `bun run build`: build all workspaces (`dist/`, `.astro/` outputs).
-- `bun run check`: format + lint fix (`prettier --write` and `eslint --fix`).
-- `bun run ee --help` or `./ee --help`: inspect CLI commands.
-- `bun run data-pull` / `bun run data-push`: pull/push `data/` with `gh` CLI.
+## Code Style
 
-## Coding Style & Naming Conventions
+TypeScript (ESM, strict). Prettier: tabWidth 2, semicolons, double quotes, trailing commas. ESLint with TypeScript, Astro, React Hooks rules.
 
-- Language: TypeScript (ESM, strict settings in app configs).
-- Formatting: Prettier (`tabWidth: 2`, semicolons, double quotes, trailing commas).
-- Linting: ESLint with TypeScript, Astro, and React Hooks rules.
-- Naming: React components in `PascalCase` (`Chat.tsx`), utility/functions in `camelCase`, CLI command files in `kebab-case` (`video-analyze.ts`).
-- Keep modules focused; place app-specific logic in each app’s `src/` directory.
+React components: `PascalCase`. Utilities: `camelCase`. CLI commands: `kebab-case`.
 
-## Testing Guidelines
+## Commits
 
-There is no dedicated automated test suite yet (`test` script/framework is not configured). Minimum validation for changes:
+Concise imperative subjects: `Add ...`, `Fix ...`, `Refactor ...`. Keep commits scoped.
 
-- Run `bun run check` and `bun run build`.
-- Smoke-test touched flows (CLI command path, API endpoint, or web UI interaction).
-  When adding tests, colocate with source using `*.test.ts` / `*.test.tsx` naming.
+## Environment
 
-## Commit & Pull Request Guidelines
-
-Git history uses concise, imperative commit subjects (for example: `Add ...`, `Refactor ...`, `Update ...`). Follow that style and keep commits scoped.
-For PRs, include:
-
-- what changed and why,
-- how to validate (commands run),
-- linked issue/context,
-- screenshots or short clips for `apps/web` UI changes,
-- notes for env/data/schema impacts (especially `data/index` and `.env` usage).
-
-## Security & Configuration Tips
-
-- Do not commit secrets or local env files (`.env*` is ignored).
-- CLI requires `GOOGLE_GENERATIVE_AI_API_KEY` and `EE_GEMINI_MODEL`.
-- Treat `data/` as potentially large/sensitive; share index snapshots via the sync script, not ad hoc commits.
+Do not commit `.env*`. CLI requires `GOOGLE_GENERATIVE_AI_API_KEY` and `EE_GEMINI_MODEL`.

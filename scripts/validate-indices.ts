@@ -5,7 +5,7 @@
  *
  * Checks:
  * - Every entries/*.json file is valid JSON
- * - Every entries/*.json file is an array
+ * - Every entries/*.json file is an array (or object if entryFormat: "object")
  * - Every item has the required fields defined in schema.json
  * - Every index directory has a schema.json
  */
@@ -32,6 +32,7 @@ interface Schema {
   description?: string;
   type: string;
   scoring?: ScoringConfig | null;
+  entryFormat?: "array" | "object";
   items?: SchemaItem;
 }
 
@@ -141,21 +142,38 @@ async function main() {
         continue;
       }
 
-      if (!Array.isArray(parsed)) {
-        error(`entries/${file}: expected array, got ${typeof parsed}`);
-        continue;
-      }
+      const expectObject = schema.entryFormat === "object";
 
-      // Check required fields on each item
-      for (let i = 0; i < parsed.length; i++) {
-        const item = parsed[i];
-        if (item == null || typeof item !== "object") {
-          error(`entries/${file}[${i}]: expected object`);
+      if (expectObject) {
+        // Per-file object entries (e.g. behavioral: one object per video)
+        if (
+          parsed == null ||
+          typeof parsed !== "object" ||
+          Array.isArray(parsed)
+        ) {
+          error(
+            `entries/${file}: expected object, got ${Array.isArray(parsed) ? "array" : typeof parsed}`,
+          );
           continue;
         }
-        for (const field of requiredFields) {
-          if (!(field in item)) {
-            error(`entries/${file}[${i}]: missing required field "${field}"`);
+      } else {
+        // Default: array of items
+        if (!Array.isArray(parsed)) {
+          error(`entries/${file}: expected array, got ${typeof parsed}`);
+          continue;
+        }
+
+        // Check required fields on each item
+        for (let i = 0; i < parsed.length; i++) {
+          const item = parsed[i];
+          if (item == null || typeof item !== "object") {
+            error(`entries/${file}[${i}]: expected object`);
+            continue;
+          }
+          for (const field of requiredFields) {
+            if (!(field in item)) {
+              error(`entries/${file}[${i}]: missing required field "${field}"`);
+            }
           }
         }
       }

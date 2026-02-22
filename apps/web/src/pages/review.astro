@@ -1,184 +1,107 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import DailyReview from "../components/DailyReview";
+import FeedView from "../components/FeedView";
 ---
 
-<Layout title="Daily Review — Experience Engine">
-  <DailyReview client:load />
+<Layout title="Feed — Experience Engine">
+  <FeedView client:load />
 </Layout>
 
 <style is:global>
   /* ═══════════════════════════════════════════════
-     REVIEW PAGE
+     FEED
      ═══════════════════════════════════════════════ */
 
-  .rv-page {
-    height: 100%;
+  .fd-feed {
     overflow-y: auto;
-    background: var(--color-ee-bg);
-    color: var(--color-ee-text);
-    position: relative;
-  }
-
-  .rv-content {
-    position: relative;
-    z-index: 2;
-    max-width: 1320px;
-    margin: 0 auto;
-    padding: 2.5rem 2.5rem 5rem;
-  }
-
-  /* ── Hero header ── */
-
-  .rv-hero {
-    display: flex;
-    gap: 2rem;
-    align-items: flex-start;
-    margin-bottom: 1.75rem;
-    animation: rv-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .rv-hero__date {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  .rv-hero__date-month {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1rem;
-    color: var(--color-ee-text-muted);
-    letter-spacing: 0.04em;
-  }
-
-  .rv-hero__date-day {
-    font-family: var(--font-display);
-    font-size: 4.5rem;
-    color: var(--color-ee-accent);
-    line-height: 0.85;
-    letter-spacing: -0.04em;
-  }
-
-  .rv-hero__body {
-    flex: 1;
-    padding-top: 0.15rem;
-    min-width: 0;
-  }
-
-  .rv-hero__label {
-    font-size: 0.6rem;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-ee-text-faint);
-    display: block;
-    margin-bottom: 0.3rem;
-  }
-
-  .rv-hero__name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0 0 0.2rem;
-    letter-spacing: -0.025em;
-    color: var(--color-ee-text);
-  }
-
-  .rv-hero__meta {
-    font-size: 0.78rem;
-    color: var(--color-ee-text-muted);
-    margin: 0 0 1.25rem;
-    line-height: 1.4;
-  }
-
-  /* ── Category meters ── */
-
-  .rv-meters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    animation: rv-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-  }
-
-  .rv-meter {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-
-  .rv-meter__label {
-    font-size: 0.58rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    width: 85px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  .rv-meter__track {
-    flex: 1;
-    max-width: 140px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .rv-meter__fill {
     height: 100%;
-    border-radius: 2px;
-    animation: rv-meter-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
-  }
-
-  @keyframes rv-meter-grow {
-    from {
-      width: 0 !important;
-    }
-  }
-
-  .rv-meter__count {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 500;
-    width: 1rem;
-    flex-shrink: 0;
+    background: var(--color-ee-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem;
+    padding-bottom: 4rem;
+    max-width: 640px;
+    margin: 0 auto;
   }
 
   /* ── Summary ── */
 
-  .rv-summary {
-    border-left: 2px solid var(--color-ee-accent);
-    padding: 0.75rem 1.15rem;
-    margin-bottom: 2rem;
-    background: rgba(245, 158, 11, 0.025);
-    border-radius: 0 8px 8px 0;
-    animation: rv-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  .fd-summary {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
-  .rv-summary p {
-    font-size: 0.82rem;
-    line-height: 1.7;
-    color: var(--color-ee-text-secondary);
+  .fd-summary__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .fd-summary__label {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.5rem;
+    color: var(--color-ee-text);
+  }
+
+  .fd-summary__count {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--color-ee-text-faint);
+    letter-spacing: 0.04em;
+  }
+
+  .fd-summary__text {
     margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.65;
+    color: var(--color-ee-text-muted);
   }
 
-  /* ── Video grid ── */
-
-  .rv-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.25rem;
+  .fd-summary__cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
-  /* ── Animations ── */
+  .fd-summary__cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: var(--sc);
+    letter-spacing: 0.04em;
+  }
 
-  @keyframes rv-enter {
+  .fd-summary__cat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sc);
+    opacity: 0.7;
+  }
+
+  /* ── Card ── */
+
+  .fd-card {
+    flex-shrink: 0;
+    background: #181818;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--color-ee-border);
+    animation: fd-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--fd-i, 0) * 0.07s);
+  }
+
+  @keyframes fd-enter {
     from {
       opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
@@ -186,24 +109,209 @@ import DailyReview from "../components/DailyReview";
     }
   }
 
-  @media (max-width: 640px) {
-    .rv-hero {
-      flex-direction: column;
-      gap: 1rem;
-    }
+  /* ── Media area ── */
 
-    .rv-hero__date {
-      flex-direction: row;
-      gap: 0.5rem;
-      align-items: baseline;
-    }
+  .fd-card__media {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    cursor: pointer;
+    background: #111;
+  }
 
-    .rv-hero__date-day {
-      font-size: 3rem;
-    }
+  .fd-card__img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
-    .rv-content {
-      padding: 1.5rem 1.25rem 4rem;
+  .fd-card__media:hover .fd-card__img {
+    transform: scale(1.04);
+  }
+
+  .fd-card__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.6) 0%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.25) 100%
+    );
+    pointer-events: none;
+    transition: background 0.4s ease;
+  }
+
+  .fd-card__media:hover .fd-card__overlay {
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.5) 0%,
+      rgba(0, 0, 0, 0.15) 50%,
+      rgba(0, 0, 0, 0.2) 100%
+    );
+  }
+
+  /* ── Category pill ── */
+
+  .fd-pill {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 4px;
+    font-size: 0.58rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--pill-c);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .fd-pill__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--pill-c);
+    box-shadow: 0 0 6px var(--pill-c);
+    animation: fd-pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes fd-pulse {
+    0%,
+    100% {
+      opacity: 1;
     }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /* ── Play button ── */
+
+  .fd-card__play {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .fd-card__media:hover .fd-card__play {
+    opacity: 1;
+  }
+
+  .fd-card__play svg {
+    width: 44px;
+    height: 44px;
+    padding: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .fd-card__media:hover .fd-card__play svg {
+    transform: scale(1.08);
+  }
+
+  /* ── Duration ── */
+
+  .fd-card__dur {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Body text ── */
+
+  .fd-card__body {
+    padding: 0.85rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .fd-card__activity {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--color-ee-text);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .fd-card__reasoning {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--color-ee-text-muted);
+  }
+
+  /* ── Tutorial CTA ── */
+
+  .fd-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 0.25rem;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--fd-cat);
+    letter-spacing: 0.02em;
+    transition: gap 0.25s ease;
+    width: fit-content;
+  }
+
+  .fd-cta:hover {
+    gap: 7px;
+  }
+
+  .fd-cta__label {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in srgb, var(--fd-cat) 30%, transparent);
+  }
+
+  .fd-cta:hover .fd-cta__label {
+    text-decoration-color: var(--fd-cat);
+  }
+
+  .fd-cta svg {
+    transition: transform 0.25s ease;
+  }
+
+  .fd-cta:hover svg {
+    transform: translateX(2px);
   }
 </style>

@@ -290,7 +290,12 @@ async function renderTextCard(
           : "0x1a237e";
   const tintAlpha = style === "takeaway" ? 0.65 : 0.6;
 
-  const fontColor = "white";
+  const fontColor =
+    style === "root-cause"
+      ? "yellow"
+      : style === "impact"
+        ? "#81d4fa"
+        : "white";
   const fontSize = 32;
   const lines = wrapLines(text, 45);
   const textFilters = centeredTextFilters(lines, fontSize, fontColor);

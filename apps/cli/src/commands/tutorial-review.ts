@@ -89,11 +89,12 @@ IMPACT steps (dark teal background, light cyan text):
 - This card quantifies the cost of the behavior — verify numbers or concrete estimates are present and legible.
 
 PLAY steps:
-- The clip must show what the "description" field says it should show.
+- If the step has a "description" field, the clip must show what it says. If there is NO "description" field, use the "text" of the nearest preceding NARRATE step as the expected content — the clip must visually demonstrate the specific behavior described there.
 - If there is a "label", verify it is visible in the lower-left of the clip.
 - VISUAL CLARITY: The described action must be the clear focal point of the clip — close enough to see, centered or prominent in frame. If the action is technically present but small, in the background, or not obviously the subject of the shot, mark ok=false and explain what a viewer would actually see.
 - LITERAL MATCH: The "description" field is a short visual statement about what the viewer sees (e.g. "Worker pausing mid-lift to re-check alignment"). Hold the clip to that literally. If the clip shows something different — even something plausible given the context — mark ok=false. Do NOT give credit for clips that merely show the same job site, same worker, or same task type. The specific described action must be visibly happening.
-- NARRATIVE CONTINUITY: The preceding narrate step explains what this clip shows. If a viewer watched the narrate card and then saw this clip, would they immediately recognize the described behavior? If the clip would feel disconnected or confusing — "I was told to look for X, but I see Y" — mark ok=false.
+- WIDE/WALKING SHOTS: If the clip primarily shows workers walking, wide establishing shots of the site, or general background activity with no close-up of the specific behavior (e.g. hands on a block, tool in use, specific task in progress), mark ok=false and describe what the clip actually shows.
+- NARRATIVE CONTINUITY: The preceding narrate step explains what this clip shows. If a viewer watched the narrate card and then saw this clip, would they immediately recognize the described behavior? If the clip would feel disconnected or confusing — "I was told to look for X, but I see Y" — mark ok=false. If the tutorial is making a comparison (e.g. "here is the problem" followed by "here is the expert"), both clips must visually show the same type of task at comparable scale and framing so the contrast is clear.
 
 PAUSE steps:
 - The frame must be a still image (not moving) from approximately "timestampSec".

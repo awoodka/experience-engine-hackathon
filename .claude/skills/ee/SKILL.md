@@ -605,10 +605,31 @@ onto the video frame, and then verifies it actually highlights the right thing.
 watching over someone's shoulder and pointing out exactly what they see — not an AI
 summarizing a report. Write for a person who is watching the clip you just showed them.
 
-**The reasoning field is the script.** Every narrate card must come from an `implicitIntent`
-`reasoning` in the behavioral index — not from your own summary, not from the `activity` field,
-not invented. If you find yourself writing narration that doesn't trace back to a specific
-reasoning string, stop and go back to the index.
+**The reasoning and spatialIntelligence fields together are the script.** Every narrate card
+must come from an `implicitIntent` in the behavioral index — specifically its `reasoning` text
+and `spatialIntelligence` observations. Do not invent narration. Do not paraphrase generically.
+
+Each `implicitIntent` gives you two complementary layers:
+
+- **`reasoning`** — the behavioral story: what the task sequence reveals about skill level, and
+  what an expert would do instead
+- **`spatialIntelligence`** — the physical evidence: exactly how the body was positioned, how
+  close they got, how efficiently they moved through space
+
+Use both. The reasoning tells you *what* happened and *why* it matters. The spatial observations
+tell you *how it looked physically* — and those concrete details are what make the narration
+specific enough to be useful.
+
+**Three spatial fields, three types of detail to cite:**
+
+- `bodyOrientation.observation` — how the worker positioned their body relative to the work.
+  Cite this when describing setup: "he leaned in to 0.2m", "squared up before the lift",
+  "angled away from the joint".
+- `distanceBeforeAction.estimatedMeters + observation` — how close they got before committing.
+  Cite the number: "stayed 0.6m back", "closed to 0.2m", "overreached at arm's length".
+- `trajectoryEfficiency.efficiencyRatio + observation` — quality of the movement path.
+  Cite the ratio: "0.52 efficiency — path was nearly twice the direct distance", "ratio 1.0,
+  stationary pivot, zero wasted steps".
 
 **Open with the category signal, stated plainly.** The first narrate card should name the
 problem directly in terms the worker understands:
@@ -620,7 +641,8 @@ problem directly in terms the worker understands:
 | smoothness   | "This is where the rhythm breaks — ..." |
 | coordination | "This is the coordination gap — ..."    |
 
-Then finish the sentence with what literally happens and why it costs time. Don't summarize — describe.
+Then finish the sentence with what literally happens and why it costs time. Weave in the spatial
+observation that physically explains it (e.g., "stepped back 0.6m instead of staying close").
 
 - **Bad (AI-sounding):** "The worker's task sequence reveals hesitation caused by over-application of material."
 - **Good (direct):** "This is the hesitation — he over-loads the trowel, then scrapes back the excess before the block can go down."
@@ -635,10 +657,10 @@ red bounding box around it. The pause caption should name the failure in 8 words
 
 **The expert contrast is mandatory.** Every behavioral moment shown must be followed by a
 `root-cause` card explaining why experienced workers don't do this and what they do instead.
-This is the point of the tutorial — teaching what right looks like, not just showing what went wrong.
+State what the physical pattern looks like when done right (body position, distance, trajectory).
 
 - **Bad:** "An expert performs this task more efficiently."
-- **Good:** "Experienced masons gauge the load before the trowel touches the wall — one motion, not two."
+- **Good:** "Experienced masons gauge the load before the trowel touches the wall — one motion, not two. They close to 0.2m before install, ratio 0.95."
 
 **Write for a person, not a document.** Say "he can't find his tape measure," not "suboptimal
 tool-retrieval workflow." Each sentence should earn its place. No passive voice. No hedging.
@@ -726,20 +748,13 @@ The physical mechanics add to the behavioral problem. Use spatial to show that t
 
 ### Step-by-Step Workflow
 
-1. **Read behavioral entries — the reasoning IS the script**
-
-   Do not write narration from scratch. Do not invent commentary. The `reasoning`
-   field on every `implicitIntent` is the tutorial text — it was written to explain
-   exactly what happened and what it means about skill level.
+1. **Read behavioral entries — reasoning + spatialIntelligence together are the script**
 
    Read the behavioral entry files for the relevant videos:
-
    ```
    ./ee index-read behavioral entries/<video>.json
    ```
-
    Or search by category:
-
    ```
    ./ee index-read behavioral --search "hesitation"
    ./ee index-read behavioral --search "attention"
@@ -747,16 +762,19 @@ The physical mechanics add to the behavioral problem. Use spatial to show that t
    ./ee index-read behavioral --search "smoothness"
    ```
 
-   Read every `reasoning` field you find. Each one tells a complete story:
-   - **Low score (< 65)**: describes what went wrong and why it hurts. Use it to explain the mistake and its cost.
-   - **High score (≥ 80)**: describes what expertise looks like and why it works. Use it to show the right behavior.
+   For each `implicitIntent`, read **all of these fields**:
+   - `score` — determines whether to frame as expert (≥ 80) or problem (< 65)
+   - `reasoning` — the behavioral story; source of what happened and expert contrast
+   - `spatialIntelligence.bodyOrientation.observation` — how the body was positioned
+   - `spatialIntelligence.distanceBeforeAction.estimatedMeters` + `.observation` — proximity
+   - `spatialIntelligence.trajectoryEfficiency.efficiencyRatio` + `.observation` — path quality
 
    **Never mention score numbers in narration or video text.** Scores are for your
    internal filtering only. Describe behavior qualitatively — the reasoning field
    already does this.
 
    **Structure each behavioral moment as five steps:**
-   1. **Narrate** — open with the category signal ("This is the hesitation — ..."), then describe what literally happens and why it costs time. From the reasoning's problem clause.
+   1. **Narrate** — open with the category signal ("This is the hesitation — ..."), then describe what literally happens and why it costs time. From the reasoning's problem clause. Weave in spatial observations (distance, body orientation, trajectory).
 
    2. **Play** — the verified clip. Shows the viewer exactly what was just described.
 
@@ -765,6 +783,14 @@ The physical mechanics add to the behavioral problem. Use spatial to show that t
    4. **Root-cause** — why experienced workers don't do this, and what they do instead. From the reasoning's implication. Read the `spatialIntelligence` block and translate at least one dimension into plain language (see "Using Spatial Intelligence" above). If the spatial signals are positive, use them to isolate where the waste actually lives. If negative, use them to show how the physical mechanics compound the behavioral failure.
 
    5. **Takeaway** — one sentence, one concrete action the viewer can do tomorrow.
+
+   **Low-score intent (< 65)** — show the mistake. Reasoning explains what went wrong.
+   Spatial observations explain the physical cause. Expert contrast comes from reasoning's
+   implication plus what ideal spatial patterns look like for that action.
+
+   **High-score intent (≥ 80)** — show expertise. Reasoning explains what right looks like.
+   Spatial observations give the physical proof — cite the distance, the ratio, the body position
+   that made it work.
 
    **Example** — hesitation intent (score: 60), reasoning:
 
@@ -789,7 +815,6 @@ The physical mechanics add to the behavioral problem. Use spatial to show that t
    - Good: "Worker stops mid-lift and re-approaches the wall frame with a grinder" (visual — observable)
 
    Then verify:
-
    ```
    ./ee video-verify data/videos/<video> "<short visual description>" --start <intent.startSec> --end <intent.endSec>
    ```
@@ -875,8 +900,10 @@ The physical mechanics add to the behavioral problem. Use spatial to show that t
 - **Omitting the pause step** — every play step must be followed by a pause step with a verified bounding box. No exceptions.
 - **Writing AI-sounding narration** — avoid "the worker's task sequence reveals..." or "this behavioral intent demonstrates...". Open with the category signal ("This is the hesitation — ...") and describe what literally happens.
 - **Guessing bounding box coordinates** — always use `video-frame` + `video-analyze` to get the region, then verify with `video-frame --region` before writing to config.
+- **Writing narration without reading `spatialIntelligence`** — body position, distance, and trajectory data must be in the cards.
+- **Ignoring the specific numbers** — cite `estimatedMeters` and `efficiencyRatio`. "0.2m" and "ratio 0.95" are more useful than "he was close."
 - Writing narration that doesn't come from a `reasoning` field in the behavioral index
-- Omitting the expert contrast after showing a mistake — every bad behavior needs a "here's what an expert does instead"
+- Omitting the expert contrast after showing a mistake — state the physical pattern an expert uses, not just the behavioral one
 - Writing too many steps and exceeding the 40-second limit
 - Using long narration text (each sentence costs 2–8 seconds)
 - Using creative metaphors that replace what's literally shown ("archaeological expedition" instead of "he's digging through a messy bin")

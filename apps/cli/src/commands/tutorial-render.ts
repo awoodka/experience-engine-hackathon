@@ -25,7 +25,7 @@ import type {
 
 const LINE_HEIGHT = 44;
 const FONT = "Arial";
-const MAX_TUTORIAL_DURATION_SEC = 20;
+const MAX_TUTORIAL_DURATION_SEC = 40;
 
 /** Compute the effective duration of a step (mirrors validate-tutorials logic). */
 function computeStepDuration(step: Step): number {
@@ -34,17 +34,23 @@ function computeStepDuration(step: Step): number {
     case "takeaway":
       return (
         step.durationSec ??
-        Math.min(5, Math.max(2, Math.ceil(step.text.length / 20)))
+        Math.min(8, Math.max(2, Math.ceil(step.text.length / 20)))
       );
     case "play":
       return (
         step.durationSec ??
-        Math.max(1, Math.min(step.endSec - step.startSec, 20))
+        Math.max(1, Math.min(step.endSec - step.startSec, 40))
       );
     case "pause":
       return (
         step.durationSec ??
-        Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)))
+        Math.min(8, Math.max(3, Math.ceil(step.description.length / 20)))
+      );
+    case "root-cause":
+    case "impact":
+      return (
+        step.durationSec ??
+        Math.min(8, Math.max(2, Math.ceil(step.text.length / 20)))
       );
   }
 }
@@ -183,20 +189,16 @@ export default async function scriptRender(args: string[]): Promise<void> {
 
     switch (step.type) {
       case "narrate":
-        await renderTextCard(
-          segmentPath,
-          step.text,
-          "narrate",
-          step.durationSec,
-        );
+        await renderTextCard(segmentPath, step.text, "narrate", step.durationSec);
         break;
       case "takeaway":
-        await renderTextCard(
-          segmentPath,
-          step.text,
-          "takeaway",
-          step.durationSec,
-        );
+        await renderTextCard(segmentPath, step.text, "takeaway", step.durationSec);
+        break;
+      case "root-cause":
+        await renderTextCard(segmentPath, step.text, "root-cause", step.durationSec);
+        break;
+      case "impact":
+        await renderTextCard(segmentPath, step.text, "impact", step.durationSec);
         break;
       case "play":
         await renderPlayStep(segmentPath, step);
@@ -313,13 +315,21 @@ export default async function scriptRender(args: string[]): Promise<void> {
 async function renderTextCard(
   outputPath: string,
   text: string,
-  style: "narrate" | "takeaway",
+  style: "narrate" | "takeaway" | "root-cause" | "impact",
   overrideDuration?: number,
 ): Promise<void> {
   const duration =
-    overrideDuration ?? Math.min(5, Math.max(2, Math.ceil(text.length / 20)));
-  const bgColor = style === "takeaway" ? "0x1a1a2e" : "0x212121";
-  const fontColor = style === "takeaway" ? "0x4fc3f7" : "white";
+    overrideDuration ?? Math.min(8, Math.max(2, Math.ceil(text.length / 20)));
+  const bgColor =
+    style === "takeaway" ? "0x1a1a2e" :
+    style === "root-cause" ? "0x2d1a00" :
+    style === "impact" ? "0x0a1f0a" :
+    "0x212121";
+  const fontColor =
+    style === "takeaway" ? "0x4fc3f7" :
+    style === "root-cause" ? "0xffb74d" :
+    style === "impact" ? "0xa5d6a7" :
+    "white";
   const fontSize = style === "takeaway" ? 34 : 30;
   const lines = wrapLines(text, 50);
   const textFilters = centeredTextFilters(lines, fontSize, fontColor);
@@ -361,7 +371,7 @@ async function renderPlayStep(
   }
 
   const duration =
-    step.durationSec ?? Math.max(1, Math.min(step.endSec - step.startSec, 20));
+    step.durationSec ?? Math.max(1, Math.min(step.endSec - step.startSec, 40));
   const vfParts: string[] = [
     "scale=1280:720:force_original_aspect_ratio=decrease",
     "pad=1280:720:-1:-1:color=black",
@@ -420,7 +430,7 @@ async function renderPauseStep(
 
   const holdDuration =
     step.durationSec ??
-    Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)));
+    Math.min(8, Math.max(3, Math.ceil(step.description.length / 20)));
   const vfParts: string[] = [
     "scale=1280:720:force_original_aspect_ratio=decrease",
     "pad=1280:720:-1:-1:color=black",

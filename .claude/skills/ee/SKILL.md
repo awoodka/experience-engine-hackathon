@@ -258,6 +258,7 @@ Read data/index/behavioral/task-vocab.json
 ```
 
 If the file doesn't exist yet, start with this seed vocab:
+
 ```json
 {
   "carry": "Transport, move, retrieve, or hand off materials or tools",
@@ -282,6 +283,7 @@ Each file is `<hash>.timeline.json`.
 ### Step 3 — For each timeline file, generate a behavioral entry
 
 Read the timeline:
+
 ```
 Read data/.ee/indices/construction/timelines/<hash>.timeline.json
 ```
@@ -312,6 +314,7 @@ Leave `implicitIntents: []` if no genuine signal is present. Do NOT force-fit.
 
 **C. Features**
 For each detected intent instance, compute named numeric features. Examples:
+
 - hesitation: `toolSwitchCount`, `reworkCount`, `pauseBeforeResumeSec`
 - coordination: `handoffGapSec`, `waitTimeSec`, `communicationCount`
 - attention: `verificationCount`, `checkToActRatioSec`, `missedCheckCount`
@@ -330,6 +333,7 @@ echo '<json>' | ./ee index-write behavioral entries/<videoName>.json
 ```
 
 Output format:
+
 ```json
 {
   "videoId": "<hash>",
@@ -369,6 +373,7 @@ Output format:
 ### Step 5 — Update the task vocab
 
 After processing all videos, write the (possibly extended) vocab back:
+
 ```
 Write data/index/behavioral/task-vocab.json
 ```
@@ -424,64 +429,115 @@ onto the video frame, and then verifies it actually highlights the right thing.
 
 **CRITICAL: Follow every step below when creating a tutorial. Do NOT skip any step.**
 
-### Writing Style — Say What You See
+### Writing Style
 
-Every video should be immediately understandable. A person watching it should know exactly what they're looking at without having to decode a metaphor.
+**The reasoning field is the script.** Every narrate card must come from an `implicitIntent`
+`reasoning` in the behavioral index — not from your own summary, not from the `activity` field,
+not invented. If you find yourself writing narration that doesn't trace back to a specific
+reasoning string, stop and go back to the index.
 
-**Be literal and specific.** Describe what is actually on screen. Name the object, the action, the problem. Never use creative language that replaces what's visually obvious with something abstract.
+**Translate reasoning into two cards per behavioral moment:**
+- Card 1: what this worker did and why it hurts (from the reasoning's problem clause)
+- Card 2: what an expert does instead (from the reasoning's implication — make it explicit)
 
-- **Bad:** "Watch as our hero embarks on an archaeological expedition."
-- **Good:** "Watch this worker dig through an unorganized tool bin before he can start work."
+**Be literal.** Name the action, the object, the consequence. No metaphors.
 
-**No metaphors for physical things.** If you see a messy bin, say "messy bin." If you see a worker hesitating, say "he stops and doesn't move." Metaphors obscure what's happening and confuse the viewer.
+- **Bad:** "He hesitates before placing the block."
+- **Good:** "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle."
 
-**Keep it short and direct.** Every word should earn its place. Cut anything decorative. If a sentence doesn't tell the viewer what to look at or why it matters, delete it.
+**The expert contrast is mandatory.** Every behavioral moment shown must be followed by a
+narrate card explaining what an experienced tradesperson does differently and why. This is
+the point of the tutorial — not just showing what went wrong, but teaching what right looks like.
 
-**Make it flow.** Each step should lead naturally to the next:
+- **Bad:** shows the hesitation clip, then takeaway "Don't hesitate."
+- **Good:** shows the clip, then narrate "An expert sequences the block around the rebar before lifting — the move is planned before it starts, so there's no stop."
 
-- **Narrate**: set up exactly what the viewer is about to see
-- **Play/Pause**: show it — no surprise, no reinterpretation
-- **Takeaway**: the one concrete thing to do differently
-
-**Write for a person, not a document.** Imagine explaining this to a coworker standing next to you. Would you say "suboptimal tool-retrieval workflow"? No — you'd say "he can't find his tape measure." Write like that.
-
-**Bad example:** "Observe the worker navigating a complex material-retrieval scenario."
-**Good example:** "He's looking for a fitting. It's right there. He doesn't know that yet."
+**Write for a person, not a document.** Say "he can't find his tape measure," not "suboptimal
+tool-retrieval workflow." Each sentence should earn its place.
 
 ### Duration Limit
 
-Tutorials MUST be **20 seconds or less** total. The renderer and validator will
+Tutorials MUST be **40 seconds or less** total. The renderer and validator will
 both reject tutorials that exceed this limit. Budget your steps carefully:
 
-- **narrate/takeaway**: `min(5, max(2, ceil(text.length / 20)))` seconds
-- **play**: `endSec - startSec` (capped at 20s per clip)
+- **narrate/takeaway**: `min(8, max(2, ceil(text.length / 20)))` seconds
+- **play**: `endSec - startSec` (capped at 40s per clip)
 - **pause**: `min(4, max(2, ceil(description.length / 30)))` seconds — **pauses are short by default (2–4s)**
 
-Before writing `config.json`, mentally add up the durations. A 20-second video
-typically has 3–5 short steps, not 10. Keep narration text short. Keep play clips
-to 2–4 seconds each. Keep pause descriptions to one sentence — pauses are meant
-to point at something specific, not to linger.
+Before writing `config.json`, mentally add up the durations. A 40-second video
+typically has 4–7 steps. Keep narration direct. Keep play clips to 3–8 seconds
+each. Keep pause descriptions to one sentence — pauses are meant to point at
+something specific, not to linger.
 
 ### Step-by-Step Workflow
 
-1. **Research** — Search indices and analyze video to find the right moments.
-   Extract frames and clips. Verify timestamps are accurate.
+1. **Read behavioral entries — the reasoning IS the script**
+
+   Do not write narration from scratch. Do not invent commentary. The `reasoning`
+   field on every `implicitIntent` is the tutorial text — it was written to explain
+   exactly what happened and what it means about skill level.
+
+   Read the behavioral entry files for the relevant videos:
+   ```
+   ./ee index-read behavioral entries/<video>.json
+   ```
+   Or search by category:
+   ```
+   ./ee index-read behavioral --search "hesitation"
+   ./ee index-read behavioral --search "attention"
+   ./ee index-read behavioral --search "coordination"
+   ./ee index-read behavioral --search "smoothness"
+   ```
+
+   Read every `reasoning` field you find. Each one tells a complete story:
+   - **Low score (< 65)**: describes what went wrong and why it hurts. Use it to explain the mistake and its cost.
+   - **High score (≥ 80)**: describes what expertise looks like and why it works. Use it to show the right behavior.
+
+   **Structure each behavioral moment as three steps:**
+
+   **Narrate** — what this worker did wrong, drawn directly from the reasoning's first clause.
+   State the behavior and why it's a problem.
+
+   **Play** — the clip at `intent.startSec` / `intent.endSec`. This shows the viewer exactly
+   what was described. No timestamps other than these — never guess.
+
+   **Narrate** — what an expert does instead. This comes from the implication in the reasoning.
+   Every low-score reasoning contains this contrast — read it carefully and make it explicit.
+
+   **Example** — hesitation intent (score: 60), reasoning:
+   > "Worker paused to re-check block cell alignment before threading over tall rebar — slight
+   > struggle suggests uncertainty in sequencing the block around the steel, slowing the lay cycle."
+
+   Maps directly to:
+   ```json
+   { "type": "narrate", "text": "He stops mid-placement to re-check alignment. That uncertainty slows the whole lay cycle." },
+   { "type": "play", "video": "01_production_masonry.mp4", "startSec": 362, "endSec": 370, "label": "Hesitation at rebar", "description": "Worker pausing to re-check block cell alignment before threading over rebar." },
+   { "type": "narrate", "text": "An expert sequences the block around the rebar before lifting it. The move is planned before it starts — no stop needed." }
+   ```
+
+   Then a single `takeaway` at the end — one concrete action the viewer can do tomorrow.
+
+   Verify every clip before writing the config:
+   ```
+   ./ee video-clip data/videos/<video> --start <intent.startSec> --end <intent.endSec>
+   ./ee video-analyze <clip-path> "Does this clip show: <reasoning>? Answer yes or no."
+   ```
+   If no, try the parent segment boundaries or pick a different intent.
 
 2. **Draft config.json** — Write the tutorial script. Calculate the total
-   duration before saving. If it exceeds 20 seconds, cut steps or shorten text.
+   duration before saving. If it exceeds 40 seconds, cut steps or shorten text.
 
-   Every `play` step MUST have a `description` field stating exactly what the
-   clip is supposed to show. This is not rendered in the video — it exists so
-   the review agent can verify that the clip actually shows the right thing.
+   Every `play` step MUST have a `description` field — the reasoning text this clip
+   is meant to illustrate. Not rendered in the video, but used by the review agent.
 
    ```json
    {
      "type": "play",
      "video": "...",
-     "startSec": 4,
-     "endSec": 8,
-     "label": "Searching the Bin",
-     "description": "Worker's hands visible digging through a disorganized orange bin full of mixed tools and hardware."
+     "startSec": 362,
+     "endSec": 370,
+     "label": "Hesitation at rebar",
+     "description": "Worker pausing to re-check block cell alignment before threading over rebar — uncertainty in sequencing slows the lay cycle."
    }
    ```
 
@@ -523,8 +579,10 @@ to point at something specific, not to linger.
 
 ### Common Mistakes to Avoid
 
-- Writing 10 steps when 4 would fit the 20-second limit
-- Using long narration text (each sentence costs 2–5 seconds)
+- Writing narration that doesn't come from a `reasoning` field in the behavioral index
+- Omitting the expert contrast after showing a mistake — every bad behavior needs a "here's what an expert does instead"
+- Writing too many steps and exceeding the 40-second limit
+- Using long narration text (each sentence costs 2–8 seconds)
 - Using creative metaphors that replace what's literally shown ("archaeological expedition" instead of "he's digging through a messy bin")
 - Writing pause descriptions that don't say exactly what the bounding box is pointing at
 - Guessing bounding box coordinates without verifying them on a frame

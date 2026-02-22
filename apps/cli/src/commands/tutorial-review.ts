@@ -31,7 +31,7 @@ const REVIEW_SCHEMA = {
           stepIndex: { type: "number", description: "0-based step index" },
           stepType: {
             type: "string",
-            enum: ["narrate", "play", "pause", "takeaway"],
+            enum: ["narrate", "play", "pause", "takeaway", "root-cause", "impact"],
           },
           ok: {
             type: "boolean",
@@ -69,17 +69,27 @@ NARRATE / TAKEAWAY steps:
 - The text shown on screen must match the "text" field exactly.
 - Check that it is readable and well-centered on a solid background.
 
+ROOT-CAUSE steps (amber/orange background):
+- The text must match the "text" field exactly and be legible on a dark amber background.
+- This card explains WHY the problem happened — verify the text is analytical, not descriptive.
+
+IMPACT steps (dark green background):
+- The text must match the "text" field exactly and be legible on a dark green background.
+- This card quantifies the cost of the behavior — verify numbers or concrete estimates are present and legible.
+
 PLAY steps:
 - The clip must show what the "description" field says it should show.
 - If there is a "label", verify it is visible in the lower-left of the clip.
 - The correct section of the correct video file must be playing.
+- VISUAL CLARITY: The described action must be the clear focal point of the clip — close enough to see, centered or prominent in frame. If the action is technically present but small, in the background, or not obviously the subject of the shot, mark ok=false and explain what a viewer would actually see.
+- NARRATIVE CONTINUITY: Consider how this clip fits with the steps immediately before and after it. If the tutorial is making a comparison (e.g. "here is the problem" followed by "here is the expert"), both clips must visually show the same type of task at comparable scale and framing so the contrast is clear to a viewer. If a clip would feel disconnected or confusing given the surrounding steps, mark ok=false.
 
 PAUSE steps:
 - The frame must be a still image (not moving) from approximately "timestampSec".
 - If there is a "region", the red bounding box must highlight exactly what "description" says.
 - The "description" text must be legible at the bottom of the frame.
 
-Be strict. If a bounding box is slightly off, say so. If a clip shows the wrong moment, say so. If text is cut off or hard to read, say so. Only mark a step as ok=true if it clearly and correctly matches its intent.`;
+Be strict. If a bounding box is slightly off, say so. If a clip shows the wrong moment, say so. If text is cut off or hard to read, say so. If a clip is technically correct but visually unclear or narratively disconnected, say so. Only mark a step as ok=true if it clearly and correctly matches its intent AND makes sense in context.`;
 }
 
 export default async function tutorialReview(args: string[]): Promise<void> {

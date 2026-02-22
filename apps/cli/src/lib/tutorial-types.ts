@@ -43,7 +43,19 @@ export interface TakeawayStep {
   durationSec?: number;
 }
 
-export type Step = NarrateStep | PlayStep | PauseStep | TakeawayStep;
+export interface RootCauseStep {
+  type: "root-cause";
+  text: string;
+  durationSec?: number;
+}
+
+export interface ImpactStep {
+  type: "impact";
+  text: string;
+  durationSec?: number;
+}
+
+export type Step = NarrateStep | PlayStep | PauseStep | TakeawayStep | RootCauseStep | ImpactStep;
 
 export interface TutorialScript {
   title: string;

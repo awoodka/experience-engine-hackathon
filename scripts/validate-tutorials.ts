@@ -52,11 +52,25 @@ const TakeawayStep = z.object({
   durationSec: z.number().positive().optional(),
 });
 
+const RootCauseStep = z.object({
+  type: z.literal("root-cause"),
+  text: z.string().min(1),
+  durationSec: z.number().positive().optional(),
+});
+
+const ImpactStep = z.object({
+  type: z.literal("impact"),
+  text: z.string().min(1),
+  durationSec: z.number().positive().optional(),
+});
+
 const Step = z.discriminatedUnion("type", [
   NarrateStep,
   PlayStep,
   PauseStep,
   TakeawayStep,
+  RootCauseStep,
+  ImpactStep,
 ]);
 
 const TutorialScript = z.object({
@@ -78,7 +92,7 @@ const TutorialMeta = z.object({
 
 // ─── Duration calculation (mirrors tutorial-render logic) ─────────────────────
 
-const MAX_TUTORIAL_DURATION_SEC = 20;
+const MAX_TUTORIAL_DURATION_SEC = 40;
 
 type ParsedStep = z.infer<typeof Step>;
 
@@ -88,17 +102,23 @@ function computeStepDuration(step: ParsedStep): number {
     case "takeaway":
       return (
         step.durationSec ??
-        Math.min(5, Math.max(2, Math.ceil(step.text.length / 20)))
+        Math.min(8, Math.max(2, Math.ceil(step.text.length / 20)))
       );
     case "play":
       return (
         step.durationSec ??
-        Math.max(1, Math.min(step.endSec - step.startSec, 20))
+        Math.max(1, Math.min(step.endSec - step.startSec, 40))
       );
     case "pause":
       return (
         step.durationSec ??
-        Math.min(4, Math.max(2, Math.ceil(step.description.length / 30)))
+        Math.min(8, Math.max(3, Math.ceil(step.description.length / 20)))
+      );
+    case "root-cause":
+    case "impact":
+      return (
+        step.durationSec ??
+        Math.min(8, Math.max(2, Math.ceil(step.text.length / 20)))
       );
   }
 }
@@ -121,9 +141,9 @@ function checkSemantics(script: z.infer<typeof TutorialScript>): string[] {
         );
       }
       const dur = step.endSec - step.startSec;
-      if (dur > 20) {
+      if (dur > 40) {
         errors.push(
-          `steps[${i}] play: clip duration ${dur.toFixed(1)}s exceeds 20s limit`,
+          `steps[${i}] play: clip duration ${dur.toFixed(1)}s exceeds 40s limit`,
         );
       }
     }

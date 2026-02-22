@@ -1,6 +1,6 @@
 # Experience Engine
 
-**Team Brick & Morty** | UMD x Ironsite Startup Shell Hackathon 2025
+**Team Brick & Morty** | UMD x Ironsite Startup Shell Hackathon 2026
 
 ## The Problem
 
@@ -61,4 +61,4 @@ Brick & Morty — 3 members
 
 ## Hackathon
 
-UMD x Ironsite Startup Shell Hackathon | February 20-22, 2025 | Spatial Intelligence in the Physical World
+UMD x Ironsite Startup Shell Hackathon | February 20-22, 2026 | Spatial Intelligence in the Physical World

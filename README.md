@@ -1,6 +1,6 @@
 # Experience Engine
 
-**Team Brick & Morty** | UMD x Ironsite Startup Shell Hackathon 2025
+**Team Brick & Morty** | UMD x Ironsite Startup Shell Hackathon 2026
 
 AI-powered construction site video analysis that identifies expert techniques and generates targeted coaching tutorials — turning the best worker's muscle memory into everyone's skill set.
 

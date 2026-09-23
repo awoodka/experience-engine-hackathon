@@ -1,216 +1,166 @@
 # Experience Engine
 
-**Team Brick & Morty** | UMD x Ironsite Startup Shell Hackathon 2026
+Experience Engine is what our team, Brick & Morty, built in 36 hours at the UMD x Ironsite Startup Shell
+Hackathon (February 20–22, 2026). It watches construction-site footage, looks for the small habits that
+separate experienced workers from newer ones, and turns what it finds into short coaching videos cut from the
+footage itself. We got an Honorable Mention. It wasn't quite what the judges were looking for, but they found
+it interesting and technically challenging enough to recognize.
 
-AI-powered construction site video analysis that identifies expert techniques and generates targeted coaching tutorials — turning the best worker's muscle memory into everyone's skill set.
+The code is as we left it at the end of the weekend. It's a prototype. It needs the hackathon's video
+dataset, which isn't in this repo, and a logged-in Claude Code install.
 
-## The Problem
+## The idea
 
-The best workers on a construction site carry knowledge no manual has ever captured. After thousands of hours of repetition, they've developed micro-habits that make them faster, safer, and more consistent. But they can't teach what they can't articulate. New workers figure it out alone, make the same mistakes for months, and some never catch up.
+The theme was spatial intelligence in the physical world. Most spatial work in computer vision is geometric:
+where a person is, how far they are from a wall, what angle their arm is at. We wanted to see if a model
+could also say something about why a worker moves the way they do.
 
-Experience Engine watches job site video, builds a searchable behavioral index of every action and technique, then connects the dots: who's great at what, who's struggling, and what specific behavior would close the gap.
+Our bet was that a lot of expertise shows up in the order of small actions. An experienced plumber checks
+the joint and then brings the torch in. Someone newer checks, stops, and re-measures. So we break each
+video segment into a sequence of task types (`check`, `carry`, `install`, `risky`, `idle`, `communicate`,
+plus any the agent decides it needs) and look for four patterns in those sequences, which we called
+implicit intents:
 
-## Our Approach: Spatial Intelligence Meets Implicit Intent
+| Intent | What the agent looks for |
+| --- | --- |
+| hesitation | uncertainty or rework, such as carry → check → carry, install → check → install, or fetching the same thing repeatedly |
+| coordination | hand-offs and waiting on a partner, such as carry → idle → install across workers, or communicate → carry → install |
+| attention | checking before acting: check → risky, check → install, inspection before precision work |
+| smoothness | timing problems: segments under 5 seconds, high variance in segment length, erratic pacing |
 
-Traditional spatial intelligence in computer vision is geometric — where is the person, how far are they from the wall, what is the angle of their arm. That tells you *what* is happening in space.
+Plenty of segments match none of these, and our instructions tell the agent to leave them empty rather than
+force a pattern.
 
-We pushed the frontier further: **spatial intelligence should also encode behavior and intent, not just geometry.**
+## How it works
 
-Experts on a job site are constantly making micro-decisions they aren't consciously aware of. They check before they cut. They close the distance before they braze. They pivot from a fixed position instead of walking back and forth. They communicate before a risky overhead lift. None of this is written in a manual. It lives in their body, built up over years of practice.
+There's less analysis code than you might expect. Most of the pipeline is a playbook,
+[`.claude/skills/ee/SKILL.md`](.claude/skills/ee/SKILL.md), that Claude Code (Opus) follows, calling our
+`ee` CLI for anything that touches video. The CLI wraps Gemini for watching video and ffmpeg for cutting
+clips, grabbing frames and rendering.
 
-By grounding spatial observations in task sequences and implicit intent categories, we made it possible for an AI to say not just *"the worker was close to the pipe"* but *"the worker closed the gap before brazing because that is what experts do."* That is a different kind of intelligence — one that understands the **why behind the where**.
+1. Gemini watched each source video and wrote a timeline of segments: activity, tools, materials, spatial
+   context, and signs of expertise or inefficiency. The command that did this first pass was folded into the
+   general-purpose `ee video-analyze` partway through the weekend, so making a timeline for a new video now
+   means running `ee video-analyze` on it with a prompt (and optionally a `--schema`) asking for those fields.
+2. Claude reads each timeline and, for every segment, writes the task-type sequence, any intents it finds, a
+   few named numbers (like `reworkCount` or `handoffGapSec`), a 0–100 score and a few sentences of reasoning.
+   These are the model's judgments. Early on we had deterministic feature functions computing the scores, but
+   we took them out during the hackathon and moved the whole step into the playbook.
+3. For each intent, the agent cuts a clip and asks Gemini about body orientation, the distance the worker
+   closes before acting, and how direct their movement is, marking each as an expert or novice signal. The
+   prompt and schema are in [`scripts/backfill-spatial.ts`](scripts/backfill-spatial.ts).
+4. All of this lands in a JSON "behavioral index" per video, which the CLI can search (BM25, via MiniSearch)
+   and dump.
+5. To make a tutorial, the agent picks moments from the index and confirms each clip really shows the
+   behavior with `ee video-verify`, which asks Gemini. Then it writes a `config.json` of steps (narrate, play
+   the clip, pause on a frame with a red box, root cause, takeaway). `ee tutorial-render` builds the MP4
+   with an ffmpeg filter graph and refuses anything over 40 seconds. After that, `ee tutorial-review` checks
+   each step against the rendered video, and `ee tutorial-assess` asks whether it teaches something beyond
+   "here's a mistake". The agent loops until both pass.
 
-## How It Works
-
-The pipeline runs end-to-end from raw video to a queryable behavioral index that an AI can reason over. Here is the full flow.
-
-### Step 1 — Gemini clips the video and extracts spatial context
-
-Raw site footage goes into Gemini, which segments the video into discrete activity windows and extracts structured data for each one: what is happening, who is involved, what tools are present, and critically — **spatial signals** about how the worker's body is moving through space.
-
-This is where spatial intelligence enters the picture. Gemini observes things like:
-- **Body orientation** — is the worker squared to the target or working at an awkward angle?
-- **Distance before action** — did they close the gap before starting, or are they overreaching?
-- **Trajectory efficiency** — are they moving in a direct line, pivoting in place, or backtracking?
-
-These are not just geometric measurements. They are behavioral signals. A 20-degree torso lean before brazing is not a random pose — it is how an expert positions themselves for precision heat control. Spatial intelligence, combined with what the worker is doing, starts to reveal *why* they are moving that way.
-
-### Step 2 — Classify each clip into task types
-
-Each video clip is then classified into a task type that captures the *intent* behind the action, not just the activity label. The core task types are:
-
-- `check` — inspecting, measuring, verifying, aligning
-- `risky` — cutting, drilling, brazing, lifting, pressing — high-stakes actions
-- `carry` — transporting, retrieving, staging materials
-- `install` — fitting, assembling, placing, mounting
-- `communicate` — coordinating with another worker before acting
-- `idle` — waiting, pausing, standing without active engagement
-
-Classification is done by LLM reasoning, not keywords. A worker "positioning blocks" while holding a level is classified as `check`, not `install` — because the *intent* is verification. That distinction drives everything downstream.
-
-And critically: **Claude dynamically generates new task types as it learns from more videos.** The model is not constrained to a fixed taxonomy. As it encounters new trades, new workflows, and new behavioral patterns, it expands the vocabulary to match.
-
-### Step 3 — Group task type sequences into implicit intent sets
-
-Once clips are classified, the pipeline groups consecutive task types into sets that map to one of four **implicit intent categories** — the behavioral fingerprints of expertise:
-
-| Implicit Intent | Task Type Mapping | What it reveals |
-| --------------- | ----------------- | --------------- |
-| **Attention** | `check` → `risky` | The worker verified before acting on a high-stakes task |
-| **Hesitation** | `check` → `idle` | The worker stopped after inspecting — no mental pre-plan for next steps |
-| **Coordination** | `communicate` → `risky` | The worker aligned with their partner before a dangerous move |
-| **Smoothness** | `carry` → `carry` → `carry` | Repeated trips reveal whether materials were staged efficiently |
-
-For example: a plumber who inspects a copper joint (`check`) and then immediately introduces the torch (`risky`) maps to **Attention** — an expert signal. The same plumber who inspects and then stands still for 15 seconds maps to **Hesitation** — a gap in pre-planning.
-
-This is the simplest version of the mapping. The actual pipeline goes further, tracking multi-step sequences, overlapping patterns, and context across the full video timeline.
-
-### Step 4 — Compute scores with feature functions
-
-For each detected implicit intent pattern, **feature functions** compute scores (0–100) that quantify how well or poorly the behavior was executed. Each implicit intent category has its own set of features:
-
-- **Hesitation** features: gap between tasks, unnecessary tool switches, rework loops
-- **Attention** features: whether a `check` preceded the `risky` action and how recently
-- **Coordination** features: handoff speed from `carry` to `install`, wait time between workers
-- **Smoothness** features: micro-stop count, variance in segment durations
-
-These feature functions are seeded by us — but like task types, **they can be dynamically generated as the model learns more.** As the system encounters new trades and new behavioral patterns, it can propose and register new features that better capture what expertise looks like in that domain.
-
-All computed scores, raw context values, and spatial observations are written into a structured behavioral index as JSON.
-
-### Step 5 — The AI queries the index and produces reasoned output
-
-A Claude agent queries the behavioral index using `./ee query` and produces natural-language reasoning that explains what the worker did, why it matters, and what it signals about their skill level:
+Here's one intent from the index, trimmed. The angle, distance and ratio are Gemini's estimates from a
+single camera, not measurements, and nobody outside the team has checked the reasoning.
 
 ```json
 {
   "category": "attention",
   "taskSet": ["check", "risky"],
   "score": 90,
-  "reasoning": "The check-to-risky task sequence demonstrates expertise through a deliberate and efficient pattern where the worker meticulously inspects the copper joint before introducing the high-heat flame. This physical technique is supported by expert signals, as the worker closed to a consistent 0.3m distance before brazing and maintained a direct trajectory efficiency ratio of 0.95. This performance is correct and worth repeating because the worker squares their torso to the joint, ensuring the torch tip remains perfectly aligned for a uniform heat distribution.",
+  "reasoning": "The check-to-risky task sequence demonstrates expertise through a deliberate and efficient pattern where the worker meticulously inspects the copper joint before introducing the high-heat flame.",
   "spatialIntelligence": {
     "bodyOrientation": {
       "label": "lean_in_for_precision",
       "observation": "The worker squares their torso and leans in at approximately a 20-degree angle to align the torch tip with the copper joint.",
       "expertSignal": true
     },
-    "distanceBeforeAction": {
-      "label": "close_gap_before_braze",
-      "estimatedMeters": 0.3,
-      "observation": "The worker maintains a consistent working distance of about 0.3 meters between the torch nozzle and the pipe throughout the brazing sequence.",
-      "expertSignal": true
-    },
-    "trajectoryEfficiency": {
-      "label": "direct_path",
-      "efficiencyRatio": 0.95,
-      "observation": "The worker moves the torch in a direct line between the two pipe joints with no wandering or backtracking observed.",
-      "expertSignal": true
-    }
+    "distanceBeforeAction": { "label": "close_gap_before_braze", "estimatedMeters": 0.3, "expertSignal": true },
+    "trajectoryEfficiency": { "label": "direct_path", "efficiencyRatio": 0.95, "expertSignal": true }
   }
 }
 ```
 
-An AI watched a plumber braze copper pipe in a cramped corner closet and produced reasoning that a master plumber would recognize as accurate. The 20-degree lean, the 0.3m working distance, the check-before-flame sequence — none of those behaviors were labeled in the source video. They were inferred.
+The web app's main page (`/`) is a chat with the agent. It streams from Claude Code through the Hono API,
+and when the agent calls `ee present`, the clip or frame shows up inline. `/tutorials` is a gallery of
+rendered tutorials. `/review` (labeled Feed) shows five hand-picked tutorials as a mock-up of a
+superintendent's daily digest; those cards are hardcoded.
 
-**This is pushing the frontier.** AI systems can detect objects, estimate poses, and measure distances. What they have not been able to do is explain implicit behavior — the instincts and micro-decisions that make someone an expert. Experience Engine does that.
+## Who built what
 
-### Step 6 — Generate targeted coaching tutorials
+From the commit history:
 
-The AI takes its reasoned output and turns it into actionable coaching. It identifies what a worker did wrong, what the expert version of that behavior looks like, and generates an annotated tutorial from real footage — pairing the mistake with the correction, explained in plain language.
+- Stephen Shkeda set up the monorepo, the `ee` CLI and its later rewrite into small composable commands
+  (index search included), the Hono API that runs Claude Code behind the chat, the Astro web app and its
+  Feed and Tutorials pages, the tutorial renderer and `tutorial-review`, the team data sync, and the setup
+  sections of the README we submitted to the hackathon.
+- Anjali Sreenivasan built the scoring side: the first heuristic scoring pipeline, the behavioral index with
+  its four intent categories (later moved into the playbook), the Gemini spatial analysis in
+  `scripts/backfill-spatial.ts`, error handling in the API, and the approach write-up in that README.
+- Alex Woodka built the tutorial side: the first tutorial generator and Tutorials page, tutorial validation
+  in `scripts/validate-tutorials.ts`, grounding tutorial narration in the index's reasoning, the 40-second
+  limit, `ee video-verify` and `ee tutorial-assess`.
 
-This is the product. Not a report. Not a dashboard. A teaching moment, generated automatically from the job site itself.
+## What isn't here
 
-### Step 7 — The vision: pairing skilled workers with unskilled ones
+The footage and everything generated from it (timelines, indices, tutorials, chats) lived in `data/`, which
+is gitignored. `bun run data-pull` fetches it from a private GitHub gist whose ID only the team has, so it
+won't work for anyone else. The videos came from the dataset the organizers provided.
 
-With a wider dataset, the full vision becomes possible. Experience Engine identifies an expert worker and an unskilled one doing the same task, surfaces the implicit behavioral gap between them — the things the expert does that they cannot articulate — and creates an in-house teaching opportunity.
+[EVIDENCE.md](EVIDENCE.md) lays out a blind comparison against a plain "summarize this video and give
+coaching advice" baseline. We never ran it, so there's no measured evidence that the tutorials beat an
+ordinary AI summary.
 
-No external training. No generic safety videos. The best person on your crew becomes the curriculum, and every new hire gets coached on the real skills that drive efficiency, safety, and speed on that specific job site.
+[DEMO.md](DEMO.md) describes where we wanted to go: find an experienced worker and a newer one doing the
+same task and build the tutorial from the difference between them. That comparison never got built. The
+tutorials we made point out one mistake and describe what an experienced worker would do instead.
 
-## Structure
+## Running it
 
-Bun + Turborepo monorepo.
-
-```
-apps/
-  api/     Hono API — chat streaming, tutorial serving (port 7892)
-  cli/     ee CLI — video analysis, indexing, search, tutorial rendering
-  web/     Astro + React frontend — chat, tutorials, daily review (port 7891)
-data/
-  videos/     Source video files
-  index/      Behavioral indices (behavioral, construction, expert-technique, ...)
-  tutorials/  Generated tutorials (config.json, video.mp4, thumb.jpg)
-scripts/      Validation, backfill, sync utilities
-```
-
-## Getting Started
+You'll need Bun 1.3.9, ffmpeg on your PATH, and Claude Code installed and logged in, since both the chat
+API and the terminal agent drive it. The `gh` CLI is only used by the data sync.
 
 ```bash
-# Install dependencies
 bun install
-
-# Set up environment
-cp .env.example .env
-# Add GOOGLE_GENERATIVE_AI_API_KEY and EE_GEMINI_MODEL
-
-# Pull data from GitHub
-bun run data-pull
-
-# Start dev servers
-bun run dev
+cp apps/cli/.env.example apps/cli/.env   # add GOOGLE_GENERATIVE_AI_API_KEY and EE_GEMINI_MODEL
+bun run dev                              # web on localhost:7891, API on localhost:7892
 ```
 
-The web app runs at `localhost:7891`, proxying API requests to `localhost:7892`.
+The env file lives in `apps/cli/` because `./ee` runs Bun from that directory, and Bun only loads `.env`
+from its working directory. `EE_GEMINI_MODEL` can be any Gemini model ID that accepts video. Source videos
+go in `data/videos/`. `bun run agent` (or `./agent.sh`) opens the
+same agent in your terminal instead of the browser.
 
-## CLI
-
-The `ee` CLI is the primary tool for video analysis and index management.
+The CLI prints its full reference with `./ee --help`. The commands we used most:
 
 ```bash
-./ee --help
+./ee video-list
+./ee video-analyze <file> "<prompt>" [--schema '<json>'] [--model <id>]
+./ee video-clip <file> --start 10 --end 20
+./ee video-frame <file> 15.0 [--region x,y,w,h]
+./ee video-verify <file> "<short visual description>" [--start <sec>] [--end <sec>]
+./ee index-list
+./ee index-read <index> --search "<query>"
+./ee index-read all --dump --stats
+./ee tutorial-render <slug>
+./ee tutorial-review <slug>
+./ee tutorial-assess <slug>
 ```
 
-**Video**
+`bun run check` formats and lints the code (it rewrites files in place) and validates whatever indices and
+tutorials are in `data/`.
 
-```bash
-./ee video-list                                  # List source videos
-./ee video-analyze <file> "<prompt>"             # Analyze with Gemini
-./ee video-clip <file> --start 10 --end 20       # Extract clip
-./ee video-frame <file> 15.0                     # Extract single frame
-./ee video-verify <file> "<activity>"            # Verify clip shows activity
-```
+The chat API runs Claude Code with `bypassPermissions` so it can call the CLI without asking. Anyone who can
+reach port 7892 can get it to run commands on your machine, so keep it on localhost.
 
-**Index**
+## Other files
 
-```bash
-./ee index-list                                  # List all indices
-./ee index-read <index> --search "<query>"       # Full-text search
-./ee index-read <index> --dump --stats           # Dump with aggregations
-./ee index-read all --dump                       # Cross-index search
-```
+- [PROJECT.md](PROJECT.md): the pitch we wrote during the event
+- [HACKATHON.md](HACKATHON.md): the event brief and judging criteria
+- [DEMO.md](DEMO.md): the demo script for the expert-versus-newcomer tutorial
+- [EVIDENCE.md](EVIDENCE.md): the evaluation plan, not run
+- [AGENTS.md](AGENTS.md): repo notes for the coding agents we worked with
+- [`.claude/skills/ee/SKILL.md`](.claude/skills/ee/SKILL.md): the playbook the analysis and tutorials run on
+- [`scripts/`](scripts/): one-off passes over the data (spatial backfill, the implicit-intent index and a
+  Gemini spot check of it, the activity log) and the validators behind `bun run check`
 
-**Tutorials**
-
-```bash
-./ee tutorial-render <slug>                      # Render tutorial to MP4
-./ee tutorial-review <slug>                      # Validate rendered video
-./ee tutorial-assess <slug>                      # Evaluate teaching quality
-```
-
-## Commands
-
-| Command             | Description                                  |
-| ------------------- | -------------------------------------------- |
-| `bun run dev`       | Start all dev servers                        |
-| `bun run build`     | Build all workspaces                         |
-| `bun run check`     | Format, lint, validate indices and tutorials |
-| `bun run data-pull` | Pull data from GitHub                        |
-| `bun run data-push` | Push data to GitHub                          |
-
-## Tech Stack
-
-- **Runtime:** Bun, Turborepo
-- **AI:** Google Gemini (video analysis), Claude (agent + chat)
-- **API:** Hono
-- **Web:** Astro, React, Tailwind, shadcn/ui
-- **Video:** FFmpeg
-- **Validation:** Zod, TypeScript (strict ESM)
+Built with Bun and Turborepo, Hono, Astro with React, Tailwind and shadcn/ui, Gemini through the Vercel AI
+SDK, Claude Code through `ai-sdk-provider-claude-code`, ffmpeg, and Zod.

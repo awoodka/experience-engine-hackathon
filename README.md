@@ -21,12 +21,12 @@ video segment into a sequence of task types (`check`, `carry`, `install`, `risky
 plus any the agent decides it needs) and look for four patterns in those sequences, which we called
 implicit intents:
 
-| Intent | What the agent looks for |
-| --- | --- |
-| hesitation | uncertainty or rework, such as carry → check → carry, install → check → install, or fetching the same thing repeatedly |
-| coordination | hand-offs and waiting on a partner, such as carry → idle → install across workers, or communicate → carry → install |
-| attention | checking before acting: check → risky, check → install, inspection before precision work |
-| smoothness | timing problems: segments under 5 seconds, high variance in segment length, erratic pacing |
+| Intent       | What the agent looks for                                                                                               |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| hesitation   | uncertainty or rework, such as carry → check → carry, install → check → install, or fetching the same thing repeatedly |
+| coordination | hand-offs and waiting on a partner, such as carry → idle → install across workers, or communicate → carry → install    |
+| attention    | checking before acting: check → risky, check → install, inspection before precision work                               |
+| smoothness   | timing problems: segments under 5 seconds, high variance in segment length, erratic pacing                             |
 
 Plenty of segments match none of these, and our instructions tell the agent to leave them empty rather than
 force a pattern.
@@ -73,8 +73,16 @@ single camera, not measurements, and nobody outside the team has checked the rea
       "observation": "The worker squares their torso and leans in at approximately a 20-degree angle to align the torch tip with the copper joint.",
       "expertSignal": true
     },
-    "distanceBeforeAction": { "label": "close_gap_before_braze", "estimatedMeters": 0.3, "expertSignal": true },
-    "trajectoryEfficiency": { "label": "direct_path", "efficiencyRatio": 0.95, "expertSignal": true }
+    "distanceBeforeAction": {
+      "label": "close_gap_before_braze",
+      "estimatedMeters": 0.3,
+      "expertSignal": true
+    },
+    "trajectoryEfficiency": {
+      "label": "direct_path",
+      "efficiencyRatio": 0.95,
+      "expertSignal": true
+    }
   }
 }
 ```

@@ -149,7 +149,7 @@ export default async function tutorialReview(args: string[]): Promise<void> {
     schema: jsonSchema(REVIEW_SCHEMA),
     messages,
     providerOptions: {
-      google: { thinkingConfig: { thinkingLevel: "minimal" } },
+      google: { thinkingConfig: { thinkingLevel: "low" } },
     },
   });
 

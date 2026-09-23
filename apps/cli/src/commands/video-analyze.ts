@@ -35,7 +35,7 @@ export default async function videoAnalyze(args: string[]): Promise<void> {
       ? thinkHasValue
         ? rawThinkValue
         : "high"
-      : "minimal",
+      : "low",
   };
 
   if (!filePath || !prompt) {

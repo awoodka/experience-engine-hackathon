@@ -138,7 +138,7 @@ Be strict:
       },
     ],
     providerOptions: {
-      google: { thinkingConfig: { thinkingLevel: "minimal" } },
+      google: { thinkingConfig: { thinkingLevel: "low" } },
     },
   });
 

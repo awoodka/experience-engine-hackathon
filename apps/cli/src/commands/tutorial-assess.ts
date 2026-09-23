@@ -116,7 +116,7 @@ export default async function tutorialAssess(args: string[]): Promise<void> {
     schema: jsonSchema(ASSESS_SCHEMA),
     messages,
     providerOptions: {
-      google: { thinkingConfig: { thinkingLevel: "minimal" } },
+      google: { thinkingConfig: { thinkingLevel: "low" } },
     },
   });
 
